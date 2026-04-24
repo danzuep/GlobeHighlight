@@ -3,139 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro</title>
+    <title>Global Mapper | Pro V10</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #222; --bg: #ffffff; --ui-bg: rgba(255, 255, 255, 0.9); }
+        :root { --accent: #222; --bg: #fff; --ui: rgba(255,255,255,0.95); }
         body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: var(--bg); color: var(--accent); }
         
-        /* High-Visibility Startup Loader */
-        #loader {
-            position: fixed; inset: 0; z-index: 100; background: #fff;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-        #loader svg { width: 80px; height: 80px; stroke: #ddd; stroke-width: 1.5; fill: none; margin-bottom: 20px; }
-        .loading-text { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: #bbb; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        #loader { position: fixed; inset: 0; z-index: 100; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #loader svg { width: 60px; height: 60px; fill: none; stroke: #eee; stroke-width: 2; margin-bottom: 20px; animation: spin 4s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* UI Elements */
+        /* UI Overlays */
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
         #ui * { pointer-events: auto; }
 
-        #compass {
-            position: fixed; top: 25px; right: 25px; width: 50px; height: 50px; cursor: pointer;
-            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1)); transition: transform 0.1s;
-        }
+        #compass { position: fixed; top: 20px; right: 20px; width: 50px; height: 50px; cursor: pointer; }
         #compass path { fill: var(--accent); }
 
-        .zoom-tray {
-            position: fixed; right: 25px; top: 50%; transform: translateY(-50%);
-            display: flex; flex-direction: column; align-items: center; gap: 15px;
-            background: var(--ui-bg); padding: 20px 8px; border-radius: 50px; border: 1px solid #eee;
-        }
-        .zoom-tray input { writing-mode: bt-lr; appearance: slider-vertical; width: 4px; height: 120px; accent-color: var(--accent); }
+        .zoom-wrap { position: fixed; right: 25px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 15px; background: var(--ui); padding: 15px 8px; border-radius: 30px; border: 1px solid #eee; }
+        #zoomSlider { writing-mode: bt-lr; appearance: slider-vertical; width: 4px; height: 120px; accent-color: var(--accent); }
 
-        /* Horizontal Pro Settings */
-        #pro-panel {
-            position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.08); border-radius: 24px 24px 0 0;
-            transform: translateY(calc(100% - 45px)); transition: transform 0.5s cubic-bezier(0.15, 1, 0.3, 1);
+        /* Smart Responsive Panel */
+        #panel {
+            position: fixed; background: var(--ui); box-shadow: 0 0 30px rgba(0,0,0,0.05);
+            transition: transform 0.5s cubic-bezier(0.2, 1, 0.2, 1); display: flex; flex-direction: column;
         }
-        #pro-panel.open { transform: translateY(0); }
-        .drag-bar { height: 45px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-weight: 800; font-size: 10px; letter-spacing: 2px; color: #999; }
-        
-        .panel-grid {
-            padding: 0 40px 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px;
-            max-height: 40vh; overflow-y: auto;
-        }
-        .panel-col { display: flex; flex-direction: column; gap: 12px; }
-        .panel-col label { font-size: 11px; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #555; }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-        
-        input[type="range"].horiz { width: 100%; accent-color: var(--accent); height: 4px; margin-top: 5px; }
-        button { padding: 8px 12px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 700; }
-        button:hover { background: #f9f9f9; }
 
-        #selection-registry { grid-column: 1 / -1; margin-top: 10px; border-top: 1px solid #eee; padding-top: 20px; }
-        ol { column-count: 3; font-size: 13px; padding-left: 20px; color: var(--accent); }
-        @media (max-width: 600px) { ol { column-count: 1; } }
+        /* Desktop: Left Sidebar */
+        @media (min-width: 769px) {
+            #panel { left: 0; top: 0; width: 320px; height: 100%; transform: translateX(-275px); }
+            #panel.open { transform: translateX(0); }
+            .handle { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 45px; height: 100px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+            .handle-tri { transition: transform 0.3s; transform: rotate(90deg); }
+            #panel.open .handle-tri { transform: rotate(-90deg); }
+            .content { padding: 40px 30px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 25px; }
+        }
+
+        /* Mobile: Bottom Dock */
+        @media (max-width: 768px) {
+            #panel { bottom: 0; left: 0; right: 0; border-radius: 20px 20px 0 0; transform: translateY(calc(100% - 45px)); }
+            #panel.open { transform: translateY(0); }
+            .handle { height: 45px; width: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+            .handle-tri { transition: transform 0.3s; transform: rotate(180deg); }
+            #panel.open .handle-tri { transform: rotate(0deg); }
+            .content { padding: 0 20px 30px; max-height: 50vh; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 20px; }
+            .section { flex: 1 1 140px; }
+        }
+
+        .section { display: flex; flex-direction: column; gap: 10px; }
+        .section label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #999; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        input[type="color"] { border: none; width: 24px; height: 24px; cursor: pointer; background: none; }
+        button { padding: 8px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 700; }
+        ol { font-size: 12px; padding-left: 15px; column-count: 2; margin: 0; }
     </style>
 </head>
 <body>
 
 <div id="loader">
-    <svg viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="45"/>
-        <path d="M20 50 Q50 20 80 50 T20 50"/>
-        <path d="M50 20 Q80 50 50 80 T50 20"/>
-    </svg>
-    <div class="loading-text">Loading Global Geometry</div>
+    <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45"/></svg>
+    <div style="font-size:10px; letter-spacing:2px; color:#aaa">LOADING ENGINE</div>
 </div>
 
 <div id="ui">
-    <svg id="compass" viewBox="0 0 100 100" onclick="resetNorth()">
-        <circle cx="50" cy="50" r="45" fill="none" stroke="var(--accent)" stroke-width="2" opacity="0.1"/>
-        <path d="M50 10 L65 50 L50 42 L35 50 Z" /> </svg>
+    <svg id="compass" viewBox="0 0 100 100" onclick="alignNorth()">
+        <path d="M50 10 L65 50 L50 42 L35 50 Z" />
+    </svg>
 
-    <div class="zoom-tray">
+    <div class="zoom-wrap">
         <button onclick="zoomStep(0.8)">-</button>
-        <input type="range" id="zoomSlider" min="6" max="25" step="0.1" value="15">
+        <input type="range" id="zoomSlider" min="6" max="25" step="0.1">
         <button onclick="zoomStep(1.2)">+</button>
     </div>
 
-    <div id="pro-panel">
-        <div class="drag-bar" onclick="document.getElementById('pro-panel').classList.toggle('open')">ENGINE CONTROLS</div>
-        <div class="panel-grid">
-            <div class="panel-col">
+    <div id="panel">
+        <div class="handle" onclick="document.getElementById('panel').classList.toggle('open')">
+            <svg class="handle-tri" width="10" height="10" viewBox="0 0 10 10"><path d="M0 0 L10 0 L5 8 Z" fill="#999"/></svg>
+        </div>
+        <div class="content">
+            <div class="section">
                 <label>Theme</label>
-                <div class="setting-row">Background <input type="color" id="bgColor" value="#ffffff"></div>
-                <div class="setting-row">Globe <input type="color" id="globeColor" value="#f2f2f2"></div>
-                <div class="setting-row">Highlight <input type="color" id="highlightColor" value="#d4af37"></div>
+                <div class="row">Back <input type="color" id="bgColor" value="#ffffff"></div>
+                <div class="row">Globe <input type="color" id="globeColor" value="#f2f2f2"></div>
+                <div class="row">Lines <input type="color" id="lineColor" value="#c0c0c0"></div>
             </div>
-            <div class="panel-col">
+            <div class="section">
                 <label>Atmospherics</label>
-                <div class="setting-row">Borders <input type="color" id="lineColor" value="#c0c0c0"></div>
-                <div class="setting-row">Text <input type="color" id="textColor" value="#333333"></div>
-                <div style="font-size: 11px;">Drift Speed</div>
-                <input type="range" id="driftSlider" class="horiz" min="0" max="0.005" step="0.0001" value="0.001">
+                <div class="row">Highlight <input type="color" id="highlightColor" value="#d4af37"></div>
+                <div class="row">Labels <input type="color" id="textColor" value="#333333"></div>
+                <div style="font-size:11px">Drift</div>
+                <input type="range" id="driftInp" min="0" max="0.005" step="0.0001" style="width:100%; accent-color:var(--accent)">
             </div>
-            <div class="panel-col">
-                <label>Data Layers</label>
-                <button id="tzToggle" onclick="toggleTimezones()">ENABLE TIMEZONE MODE</button>
-                <div class="setting-row" style="margin-top:5px">
-                    <button onclick="copyMD()">EXPORT MD</button>
-                    <button onclick="importMD()">IMPORT MD</button>
-                </div>
+            <div class="section">
+                <label>Data</label>
+                <button onclick="exportMD()">EXPORT LIST</button>
+                <button onclick="importMD()">IMPORT LIST</button>
+                <button onclick="hardReset()" style="color:red">WIPE ALL</button>
             </div>
-            <div class="panel-col">
-                <label>System</label>
-                <button onclick="resetAesthetics()">RESET VISUALS</button>
-                <button onclick="hardReset()" style="color:#d9534f">WIPE CACHE</button>
-            </div>
-            <div id="selection-registry">
-                <strong>Active Selection:</strong>
-                <ol id="country-list"></ol>
+            <div class="section" style="width: 100%">
+                <label>Selection</label>
+                <ol id="sel-list"></ol>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // --- APP STATE ---
+    // --- STATE ---
     let state = {
         selected: new Set(),
         drift: 0.001,
-        tzActive: false,
         registry: [],
         settings: { bgColor:'#ffffff', globeColor:'#f2f2f2', highlightColor:'#d4af37', lineColor:'#c0c0c0', textColor:'#333333' }
     };
 
-    // --- THREE.JS ENGINE ---
+    // --- ENGINE ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -145,99 +132,83 @@
     controls.enableDamping = true;
     controls.minDistance = 6;
     controls.maxDistance = 25;
-    controls.addEventListener('start', () => { state.drift = 0; document.getElementById('driftSlider').value = 0; });
+    controls.addEventListener('start', () => { state.drift = 0; document.getElementById('driftInp').value = 0; });
 
-    const globeGroup = new THREE.Group();
-    scene.add(globeGroup);
+    const globe = new THREE.Group();
+    scene.add(globe);
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // The core globe sphere
-    const baseSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(4.98, 64, 64),
+    // Base globe - using slightly smaller radius to prevent Antarctica clipping
+    const globeBase = new THREE.Mesh(
+        new THREE.SphereGeometry(4.95, 64, 64),
         new THREE.MeshBasicMaterial({ color: state.settings.globeColor })
     );
-    globeGroup.add(baseSphere);
+    globe.add(globeBase);
 
-    // --- INITIALIZATION ---
     async function init() {
         camera.position.z = 15;
+        const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
+        const topo = await res.json();
+        const features = topojson.feature(topo, topo.objects.countries).features;
 
-        // Load 50m data (High detail for Singapore/Antarctica)
-        const data = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r => r.json());
-        const geojson = topojson.feature(data, data.objects.countries);
-
-        geojson.features.forEach((feature, i) => {
+        features.forEach((feat, i) => {
             const countryGroup = new THREE.Group();
-            const countryName = feature.properties.name;
+            const name = feat.properties.name;
+            const lineMat = new THREE.LineBasicMaterial({ color: state.settings.lineColor });
+            // Solid, invisible hit surface
+            const hitMat = new THREE.MeshBasicMaterial({ visible: false });
 
-            const borderMat = new THREE.LineBasicMaterial({ color: state.settings.lineColor });
-            // Semi-transparent mesh for solid raycasting hits
-            const meshMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.001 });
-
-            feature.geometry.coordinates.forEach(poly => {
-                const coords = feature.geometry.type === "MultiPolygon" ? poly[0] : poly;
-                const points = coords.map(c => latLngToVec3(c[1], c[0], 5.01));
+            feat.geometry.coordinates.forEach(poly => {
+                const coords = feat.geometry.type === "MultiPolygon" ? poly[0] : poly;
+                const pts = coords.map(c => latLngToVec3(c[1], c[0], 5.08)); // Float borders high
                 
-                // 1. Borders
-                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-                countryGroup.add(new THREE.Line(lineGeo, borderMat));
+                // Border
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+                countryGroup.add(new THREE.Line(lineGeo, lineMat));
 
-                // 2. Clickable Surface (Solid Mesh)
-                // We convert spherical coords to a Shape and project to BufferGeometry
+                // Hit Surface
                 const shape = new THREE.Shape(coords.map(c => new THREE.Vector2(c[0], c[1])));
                 const shapeGeo = new THREE.ShapeGeometry(shape);
-                
-                // Warp the flat shape to the sphere surface
                 const pos = shapeGeo.attributes.position;
-                for (let j = 0; j < pos.count; j++) {
-                    const v = latLngToVec3(pos.getY(j), pos.getX(j), 5.01);
+                for(let j=0; j<pos.count; j++) {
+                    const v = latLngToVec3(pos.getY(j), pos.getX(j), 5.07);
                     pos.setXYZ(j, v.x, v.y, v.z);
                 }
-                shapeGeo.computeVertexNormals();
-                const hitMesh = new THREE.Mesh(shapeGeo, meshMat);
-                countryGroup.add(hitMesh);
+                countryGroup.add(new THREE.Mesh(shapeGeo, hitMat));
             });
 
-            countryGroup.userData = { name: countryName };
-            globeGroup.add(countryGroup);
-            state.registry.push({ group: countryGroup, name: countryName });
+            countryGroup.userData = { name };
+            globe.add(countryGroup);
+            state.registry.push({ group: countryGroup, name });
         });
 
         loadSession();
-        document.getElementById('loader').style.display = 'none';
+        document.getElementById('loader').remove();
         animate();
     }
 
-    // --- UTILITIES ---
-    function latLngToVec3(lat, lng, radius) {
+    function latLngToVec3(lat, lng, r) {
         const phi = (90 - lat) * (Math.PI / 180);
         const theta = (lng + 180) * (Math.PI / 180);
-        return new THREE.Vector3(
-            -radius * Math.sin(phi) * Math.cos(theta),
-            radius * Math.cos(phi),
-            radius * Math.sin(phi) * Math.sin(theta)
-        );
+        return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     }
 
-    // --- SELECTION LOGIC ---
-    window.addEventListener('mousedown', (e) => {
+    window.addEventListener('click', (e) => {
         if (e.target.closest('#ui')) return;
-        
         mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(globeGroup.children, true);
-
-        if (intersects.length > 0) {
-            let obj = intersects[0].object;
-            while (obj.parent && !obj.userData.name) obj = obj.parent;
-            
-            const name = obj.userData.name;
-            if (name) {
-                state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
+        
+        // Raycast against all children of globe group
+        const hits = raycaster.intersectObjects(globe.children, true);
+        if (hits.length > 0) {
+            let p = hits[0].object;
+            while(p && !p.userData.name) p = p.parent;
+            if(p && p.userData.name) {
+                const n = p.userData.name;
+                state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
                 updateVisuals();
                 saveSession();
             }
@@ -248,101 +219,52 @@
         document.documentElement.style.setProperty('--accent', state.settings.textColor);
         document.documentElement.style.setProperty('--bg', state.settings.bgColor);
         renderer.setClearColor(state.settings.bgColor);
-        baseSphere.material.color.set(state.settings.globeColor);
+        globeBase.material.color.set(state.settings.globeColor);
 
         state.registry.forEach(c => {
-            const active = state.selected.has(c.name);
+            const isSel = state.selected.has(c.name);
             c.group.children.forEach(child => {
-                if (child instanceof THREE.Line) {
-                    child.material.color.set(active ? state.settings.highlightColor : state.settings.lineColor);
-                }
+                if(child instanceof THREE.Line) child.material.color.set(isSel ? state.settings.highlightColor : state.settings.lineColor);
             });
         });
-
-        const list = document.getElementById('country-list');
-        list.innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
+        document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
     }
 
     function animate() {
         requestAnimationFrame(animate);
         TWEEN.update();
-
-        globeGroup.rotation.y += state.drift;
-        
-        // Compass logic
-        const nPos = new THREE.Vector3(0, 5, 0).applyQuaternion(globeGroup.quaternion).project(camera);
+        globe.rotation.y += state.drift;
+        const nPos = new THREE.Vector3(0,5,0).applyQuaternion(globe.quaternion).project(camera);
         document.getElementById('compass').style.transform = `rotate(${Math.atan2(nPos.x, nPos.y)}rad)`;
-
         controls.update();
         renderer.render(scene, camera);
         document.getElementById('zoomSlider').value = camera.position.length();
     }
 
-    // --- UI ACTIONS ---
-    function resetNorth() {
-        new TWEEN.Tween(globeGroup.rotation).to({ x: 0 }, 600).easing(TWEEN.Easing.Quadratic.Out).start();
-    }
-
-    function zoomStep(f) {
-        camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25));
-    }
-
-    document.querySelectorAll('input').forEach(inp => {
-        inp.oninput = (e) => {
-            if (e.target.id === 'driftSlider') state.drift = parseFloat(e.target.value);
-            else if (e.target.id === 'zoomSlider') camera.position.setLength(e.target.value);
+    // UI Controls
+    function alignNorth() { new TWEEN.Tween(globe.rotation).to({x:0}, 600).easing(TWEEN.Easing.Quadratic.Out).start(); }
+    function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length()*(1/f), 6, 25)); }
+    
+    document.querySelectorAll('input').forEach(i => {
+        i.oninput = (e) => {
+            if(e.target.id === 'zoomSlider') camera.position.setLength(e.target.value);
+            else if(e.target.id === 'driftInp') state.drift = parseFloat(e.target.value);
             else state.settings[e.target.id] = e.target.value;
             updateVisuals();
         };
     });
 
-    function toggleTimezones() {
-        state.tzActive = !state.tzActive;
-        document.getElementById('tzToggle').innerText = state.tzActive ? "DISABLE TIMEZONE MODE" : "ENABLE TIMEZONE MODE";
-        alert("TZ Logic: Selection now operates by UTC Offset clusters.");
-    }
-
-    function saveSession() {
-        localStorage.setItem('v9_pro_save', JSON.stringify({
-            sel: [...state.selected], set: state.settings, rot: [globeGroup.rotation.x, globeGroup.rotation.y]
-        }));
-    }
-
+    function saveSession() { localStorage.setItem('v10_save', JSON.stringify({sel:[...state.selected], set:state.settings, rot:[globe.rotation.x, globe.rotation.y]})); }
     function loadSession() {
-        const s = JSON.parse(localStorage.getItem('v9_pro_save') || '{}');
-        if (s.sel) state.selected = new Set(s.sel);
-        if (s.set) state.settings = s.set;
-        if (s.rot) { globeGroup.rotation.x = s.rot[0]; globeGroup.rotation.y = s.rot[1]; }
+        const s = JSON.parse(localStorage.getItem('v10_save') || '{}');
+        if(s.sel) state.selected = new Set(s.sel);
+        if(s.set) state.settings = s.set;
+        if(s.rot) { globe.rotation.x = s.rot[0]; globe.rotation.y = s.rot[1]; }
         updateVisuals();
     }
-
-    function copyMD() {
-        const text = `### Map Selection\n\n` + [...state.selected].sort().map((n, i) => `${i+1}. ${n}`).join('\n');
-        navigator.clipboard.writeText(text);
-        alert("Copied to clipboard!");
-    }
-
-    function importMD() {
-        const raw = prompt("Paste Markdown List:");
-        if (raw) {
-            const matches = raw.match(/\d+\.\s(.*)/g);
-            if (matches) matches.forEach(m => state.selected.add(m.replace(/^\d+\.\s/, '').trim()));
-            updateVisuals();
-        }
-    }
-
-    function resetAesthetics() {
-        state.settings = { bgColor:'#ffffff', globeColor:'#f2f2f2', highlightColor:'#d4af37', lineColor:'#c0c0c0', textColor:'#333333' };
-        updateVisuals();
-    }
-
-    function hardReset() { if(confirm("Wipe all data?")) { localStorage.clear(); location.reload(); } }
-
-    window.onresize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    };
+    function hardReset() { if(confirm("Wipe?")) { localStorage.clear(); location.reload(); } }
+    function exportMD() { navigator.clipboard.writeText([...state.selected].sort().join('\n')); alert("Copied!"); }
+    window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
     init();
 </script>
