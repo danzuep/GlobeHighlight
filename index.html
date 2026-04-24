@@ -3,41 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Globe Mapper</title>
+    <title>Global Mapper Pro</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #d4af37; --bg: #ffffff; --panel: #f9f9f9; }
+        :root { 
+            --highlight: #333333; /* Linked to text color */
+            --bg: #ffffff; 
+            --panel: #f9f9f9; 
+        }
         body { margin: 0; font-family: -apple-system, sans-serif; overflow: hidden; background: var(--bg); touch-action: none; }
         
-        /* Loader */
         #loader {
             position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center;
             background: white; z-index: 100; transition: opacity 0.5s;
         }
         .spinner {
-            width: 40px; height: 40px; border: 4px solid #eee; border-top-color: var(--accent);
+            width: 40px; height: 40px; border: 4px solid #eee; border-top-color: var(--highlight);
             border-radius: 50%; animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         #container { width: 100vw; height: 100vh; cursor: grab; background: transparent; position: relative; }
         
+        /* Dynamic UI Elements */
         #compass {
             position: fixed; top: 20px; right: 20px; width: 45px; height: 45px;
-            cursor: pointer; z-index: 60; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2));
+            cursor: pointer; z-index: 60;
         }
+        #compass path { fill: var(--highlight); }
+        #compass circle.outline { stroke: var(--highlight); fill: none; stroke-width: 2; }
 
         .zoom-controls {
             position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
             display: flex; flex-direction: column; align-items: center; gap: 10px;
-            background: rgba(255,255,255,0.9); padding: 15px 8px; border-radius: 30px; z-index: 40; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.9); padding: 15px 8px; border-radius: 30px; z-index: 40;
         }
-        .zoom-controls input { writing-mode: bt-lr; appearance: slider-vertical; width: 8px; height: 150px; }
+        .zoom-controls button { color: var(--highlight); border: none; background: none; font-size: 20px; cursor: pointer; }
+        .zoom-controls input { 
+            writing-mode: bt-lr; appearance: slider-vertical; width: 4px; height: 150px; 
+            background: #ddd; accent-color: var(--highlight);
+        }
 
         /* Settings Panel */
         #config-panel {
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel);
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.15); border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.1); border-radius: 20px 20px 0 0;
             transform: translateY(calc(100% - 45px)); transition: transform 0.4s cubic-bezier(0.1, 0.5, 0.1, 1); z-index: 50;
         }
         #config-panel.open { transform: translateY(0); }
@@ -45,7 +56,7 @@
 
         .drag-handle { 
             height: 45px; display: flex; justify-content: center; align-items: center; 
-            cursor: pointer; font-weight: bold; color: #333; gap: 10px; letter-spacing: 1px;
+            cursor: pointer; font-weight: bold; color: var(--highlight); gap: 10px;
         }
         .triangle { transition: transform 0.3s; font-size: 10px; }
 
@@ -55,15 +66,16 @@
         }
 
         .control-group { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
-        .control-group label { font-weight: 700; color: #444; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 5px; }
+        .control-group label { font-weight: 700; color: #666; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
         .control-row { display: flex; justify-content: space-between; align-items: center; }
         
-        button { 
-            padding: 10px; border: 1px solid #ccc; background: white; border-radius: 8px; 
-            font-weight: 600; cursor: pointer; transition: 0.2s;
+        button.action-btn { 
+            padding: 8px; border: 1px solid #ccc; background: white; border-radius: 6px; 
+            font-weight: 600; cursor: pointer; color: #444;
         }
-        button:active { background: #eee; }
         
+        input[type="range"] { accent-color: var(--highlight); }
+
         #country-list-container { grid-column: 1 / -1; border-top: 1px solid #ddd; padding-top: 15px; }
         ol { column-count: 2; margin-top: 10px; font-size: 14px; padding-left: 25px; }
     </style>
@@ -72,19 +84,18 @@
 
 <div id="loader">
     <div class="spinner"></div>
-    <p style="font-size: 12px; color: #666; margin-top: 15px;">Loading Map Geometry...</p>
+    <p id="load-status" style="font-size: 12px; color: #666; margin-top: 15px;">Locating you...</p>
 </div>
 
 <svg id="compass" viewBox="0 0 100 100" onclick="resetToNorth()">
-    <circle cx="50" cy="50" r="45" fill="white" />
-    <path d="M50 10 L65 50 L50 90 L35 50 Z" fill="#d9534f" /> 
-    <path d="M50 90 L65 50 L35 50 Z" fill="#5bc0de" /> 
-    <circle cx="50" cy="50" r="3" fill="#333" />
+    <circle class="outline" cx="50" cy="50" r="45" />
+    <path d="M50 15 L60 50 L50 85 L40 50 Z" /> 
+    <circle cx="50" cy="50" r="3" fill="currentColor" />
 </svg>
 
 <div class="zoom-controls">
     <button onclick="adjustZoom(1.3)">+</button>
-    <input type="range" id="zoomSlider" min="150" max="3000" value="250">
+    <input type="range" id="zoomSlider" min="150" max="4000" value="250">
     <button onclick="adjustZoom(0.7)">-</button>
 </div>
 
@@ -98,12 +109,12 @@
         <div class="control-group">
             <label>Appearance</label>
             <div class="control-row">Background <input type="color" id="bgColor" value="#ffffff"></div>
-            <div class="control-row">Globe <input type="color" id="globeColor" value="#f7f7f7"></div>
+            <div class="control-row">Globe <input type="color" id="globeColor" value="#f2f2f2"></div>
             <div class="control-row">Highlight <input type="color" id="highlightColor" value="#d4af37"></div>
         </div>
         <div class="control-group">
-            <label>Lines & Motion</label>
-            <div class="control-row">Borders <input type="color" id="lineColor" value="#c0c0c0"></div>
+            <label>Borders & Motion</label>
+            <div class="control-row">Lines <input type="color" id="lineColor" value="#c0c0c0"></div>
             <div class="control-row">Thickness <input type="range" id="lineWidth" min="0.1" max="2" step="0.1" value="0.5"></div>
             <div class="control-row">Drift Speed <input type="range" id="driftSpeed" min="0" max="1" step="0.05" value="0.1"></div>
         </div>
@@ -114,14 +125,19 @@
             <div class="control-row">Color <input type="color" id="textColor" value="#333333"></div>
         </div>
         <div class="control-group">
-            <label>Data Management</label>
-            <button onclick="importMarkdown()">Import MD</button>
-            <button onclick="copyMarkdown()">Export MD</button>
-            <button onclick="confirmReset()" style="color: #d9534f; border-color: #f2dede;">Reset All Data</button>
+            <label>Special Layers</label>
+            <div class="control-row">Timezone Map <input type="checkbox" id="tzToggle"></div>
+            <button class="action-btn" onclick="importMarkdown()">Import MD</button>
+            <button class="action-btn" onclick="copyMarkdown()">Export MD</button>
+        </div>
+        <div class="control-group">
+            <label>Maintenance</label>
+            <button class="action-btn" onclick="resetView()">Reset View Settings</button>
+            <button class="action-btn" onclick="confirmFullReset()" style="color: #d9534f;">Clear Data & Cache</button>
         </div>
 
         <div id="country-list-container">
-            <strong>Selected Countries:</strong>
+            <strong>Countries:</strong>
             <ol id="country-list"></ol>
         </div>
     </div>
@@ -130,69 +146,82 @@
 <script>
     let width = window.innerWidth, height = window.innerHeight;
     let selectedCountries = new Set();
-    let worldData, rotationTimer, lastPinchDist = 0;
+    let worldData, tzData;
     let velocity = [0.1, 0]; 
     let isUserInteracting = false;
+    let tzMode = false;
 
-    const projection = d3.geoOrthographic()
-        .scale(250)
-        .translate([width / 2, height / 2])
-        .rotate([0, -10]);
-
+    const projection = d3.geoOrthographic().scale(250).translate([width / 2, height / 2]).rotate([0, -10]);
     const path = d3.geoPath().projection(projection);
     const svg = d3.select("#globe").attr("width", width).attr("height", height);
     
-    const gGlobe = svg.append("g");
-    const ocean = gGlobe.append("path").datum({type: "Sphere"}).attr("class", "ocean");
+    const ocean = svg.append("path").datum({type: "Sphere"}).attr("class", "ocean");
+    const gTz = svg.append("g");
     const gLandmass = svg.append("g");
     const gCountries = svg.append("g");
     const gLabels = svg.append("g");
 
     let settings = {
-        bgColor: "#ffffff",
-        globeColor: "#f7f7f7",
-        highlightColor: "#d4af37",
-        lineColor: "#c0c0c0",
-        lineWidth: 0.5,
-        textColor: "#333333",
-        showLabels: false,
-        fontSize: 10,
-        driftSpeed: 0.1
+        bgColor: "#ffffff", globeColor: "#f2f2f2", highlightColor: "#d4af37",
+        lineColor: "#c0c0c0", lineWidth: 0.5, textColor: "#333333",
+        showLabels: false, fontSize: 10, driftSpeed: 0.1
     };
 
+    // 1. Geolocation & Progressive Loading
     async function init() {
         try {
-            // Using a slightly more inclusive GeoJSON source
-            const res = await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
-            const topoData = await res.json();
-            // Convert TopoJSON back to GeoJSON features
-            worldData = topojson.feature(topoData, topoData.objects.countries);
+            // Geolocation Estimate (Default to GMT if blocked)
+            const geo = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({longitude: 0, latitude: 20}));
+            projection.rotate([-geo.longitude, -geo.latitude]);
+
+            document.getElementById('load-status').innerText = "Loading base map...";
+            const lowRes = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+            worldData = topojson.feature(lowRes, lowRes.objects.countries);
             
             loadState();
             setupInteractions();
             startInertia();
+            render();
+            
             document.getElementById('loader').style.opacity = '0';
             setTimeout(() => document.getElementById('loader').remove(), 500);
+
+            // 2. Load High-Detail Map (Includes Singapore)
+            document.getElementById('load-status').innerText = "Enhancing detail...";
+            const highRes = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json");
+            worldData = topojson.feature(highRes, highRes.objects.countries);
             render();
-        } catch (e) { 
-            console.error("Loading primary source failed, trying fallback...", e);
-            // Fallback for demo
-            const res = await fetch("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson");
-            worldData = await res.json();
-            loadState(); setupInteractions(); startInertia();
-            document.getElementById('loader').remove();
-            render();
-        }
+
+        } catch (e) { console.error(e); }
     }
 
     function render() {
-        d3.select("body").style("background-color", settings.bgColor);
+        // Dynamic UI Highlight Color
+        document.documentElement.style.setProperty('--highlight', settings.textColor);
+        document.documentElement.style.setProperty('--bg', settings.bgColor);
+        
         ocean.attr("d", path).attr("fill", settings.globeColor);
 
-        // Landmass Halo
+        // Timezone Layer
+        gTz.selectAll("path").remove();
+        if(tzMode && tzData) {
+            gTz.selectAll(".tz")
+                .data(tzData.features)
+                .join("path")
+                .attr("class", "tz")
+                .attr("d", path)
+                .attr("fill", d => selectedCountries.has(d.properties.tzid) ? settings.highlightColor : "transparent")
+                .attr("stroke", settings.lineColor)
+                .attr("stroke-opacity", 0.3)
+                .on("click", (e, d) => {
+                    toggleSelection(d.properties.tzid);
+                });
+        }
+
+        // Landmass Outline
         gLandmass.selectAll(".land-outline").data([worldData]).join("path")
             .attr("class", "land-outline").attr("d", path).attr("fill", "none")
-            .attr("stroke", settings.lineColor).attr("stroke-width", settings.lineWidth * 3);
+            .attr("stroke", settings.lineColor).attr("stroke-width", settings.lineWidth * 2.5);
 
         // Countries
         gCountries.selectAll(".country")
@@ -200,15 +229,11 @@
             .join("path")
             .attr("class", "country")
             .attr("d", path)
-            .attr("fill", d => selectedCountries.has(d.properties.name) ? settings.highlightColor : "transparent")
+            .attr("fill", d => !tzMode && selectedCountries.has(d.properties.name) ? settings.highlightColor : "transparent")
             .attr("stroke", settings.lineColor)
             .attr("stroke-width", settings.lineWidth)
             .on("click", (e, d) => {
-                const name = d.properties.name;
-                if(!name) return;
-                selectedCountries.has(name) ? selectedCountries.delete(name) : selectedCountries.add(name);
-                saveState();
-                render();
+                if(!tzMode) toggleSelection(d.properties.name);
             });
 
         // Labels
@@ -230,80 +255,71 @@
                 });
         }
         updateList();
+        saveState();
+    }
+
+    function toggleSelection(id) {
+        if(!id) return;
+        selectedCountries.has(id) ? selectedCountries.delete(id) : selectedCountries.add(id);
+        render();
     }
 
     function setupInteractions() {
-        // DRAG
         const drag = d3.drag()
-            .on("start", () => { 
-                isUserInteracting = true; 
-                velocity = [0,0]; 
-                settings.driftSpeed = 0; // Kill drift on swipe as requested
-                document.getElementById('driftSpeed').value = 0;
-            })
+            .on("start", () => { isUserInteracting = true; velocity = [0,0]; settings.driftSpeed = 0; document.getElementById('driftSpeed').value = 0; })
             .on("drag", (event) => {
-                const rotate = projection.rotate();
+                const r = projection.rotate();
                 const k = 75 / projection.scale();
                 velocity = [event.dx * k, -event.dy * k];
-                projection.rotate([rotate[0] + velocity[0], rotate[1] + velocity[1]]);
+                projection.rotate([r[0] + velocity[0], r[1] + velocity[1]]);
                 render();
             })
             .on("end", () => { isUserInteracting = false; startInertia(); });
 
-        // NATIVE PINCH & SCROLL
         const container = document.getElementById('container');
+        // Pinch & Scroll
+        container.onwheel = e => { e.preventDefault(); applyZoom(projection.scale() * (e.deltaY > 0 ? 0.9 : 1.1)); };
         
-        container.addEventListener('wheel', e => {
-            e.preventDefault();
-            const factor = e.deltaY > 0 ? 0.9 : 1.1;
-            applyZoom(projection.scale() * factor);
-        }, {passive: false});
-
-        container.addEventListener('touchstart', e => {
-            if (e.touches.length === 2) {
-                lastPinchDist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-            }
-        }, {passive: true});
-
-        container.addEventListener('touchmove', e => {
+        let lastDist = 0;
+        container.ontouchmove = e => {
             if (e.touches.length === 2) {
                 e.preventDefault();
-                const dist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-                const delta = dist / lastPinchDist;
-                applyZoom(projection.scale() * delta);
-                lastPinchDist = dist;
+                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                if (lastDist) applyZoom(projection.scale() * (dist / lastDist));
+                lastDist = dist;
             }
-        }, {passive: false});
+        };
+        container.ontouchend = () => lastDist = 0;
 
         d3.select("#container").call(drag);
 
-        // UI BINDING
-        const inputs = ["bgColor", "globeColor", "highlightColor", "lineColor", "lineWidth", "textColor", "fontSize", "driftSpeed"];
-        inputs.forEach(id => {
-            document.getElementById(id).oninput = (e) => {
-                settings[id] = (id === "lineWidth" || id === "fontSize" || id === "driftSpeed") ? +e.target.value : e.target.value;
-                saveState();
+        // Bind Inputs
+        ["bgColor", "globeColor", "highlightColor", "lineColor", "lineWidth", "textColor", "fontSize", "driftSpeed"].forEach(id => {
+            document.getElementById(id).oninput = e => {
+                settings[id] = (e.target.type === "range") ? +e.target.value : e.target.value;
                 render();
             };
         });
-        document.getElementById("showLabels").onchange = (e) => {
-            settings.showLabels = e.target.checked;
-            saveState();
+
+        document.getElementById("showLabels").onchange = e => { settings.showLabels = e.target.checked; render(); };
+        document.getElementById("zoomSlider").oninput = e => applyZoom(+e.target.value);
+        
+        document.getElementById("tzToggle").onchange = async e => {
+            tzMode = e.target.checked;
+            if (tzMode && !tzData) {
+                // Load Timezone GeoJSON on demand
+                tzData = await d3.json("https://raw.githubusercontent.com/evansiroky/timezone-boundary-builder/master/release/combined-with-oceans.json").catch(() => null);
+            }
+            // Clear selections when switching modes
+            selectedCountries.clear();
             render();
         };
-        document.getElementById("zoomSlider").oninput = (e) => applyZoom(+e.target.value);
     }
 
-    function applyZoom(newScale) {
-        const s = Math.min(3000, Math.max(150, newScale));
-        projection.scale(s);
-        document.getElementById("zoomSlider").value = s;
+    function applyZoom(s) {
+        const val = Math.min(4000, Math.max(150, s));
+        projection.scale(val);
+        document.getElementById("zoomSlider").value = val;
         render();
     }
 
@@ -311,13 +327,9 @@
         if (rotationTimer) rotationTimer.stop();
         rotationTimer = d3.timer(() => {
             if (isUserInteracting) return;
-            const rotate = projection.rotate();
-            projection.rotate([rotate[0] + velocity[0], rotate[1] + velocity[1]]);
-            
-            velocity[0] *= 0.95; // Friction
-            velocity[1] *= 0.95;
-
-            // Apply base drift only if user didn't zero it out
+            const r = projection.rotate();
+            projection.rotate([r[0] + velocity[0], r[1] + velocity[1]]);
+            velocity = velocity.map(v => v * 0.95);
             if (Math.abs(velocity[0]) < settings.driftSpeed) velocity[0] = settings.driftSpeed;
             render();
         });
@@ -326,49 +338,54 @@
     function resetToNorth() {
         velocity = [0.1, 0];
         d3.transition().duration(750).tween("rotate", () => {
-            const r = d3.interpolate(projection.rotate(), [0, -10]);
+            const r = d3.interpolate(projection.rotate(), [projection.rotate()[0], 0]);
             return t => { projection.rotate(r(t)); render(); };
         });
     }
 
-    function adjustZoom(factor) {
-        applyZoom(projection.scale() * factor);
+    function resetView() {
+        settings = { ...settings, bgColor: "#ffffff", globeColor: "#f2f2f2", lineColor: "#c0c0c0", lineWidth: 0.5, fontSize: 10, driftSpeed: 0.1 };
+        projection.scale(250);
+        render();
     }
 
-    function confirmReset() {
-        if(confirm("Are you sure? This will delete all selected countries and custom colors.")) {
+    function confirmFullReset() {
+        if(confirm("Clear all selected countries, timezones, and cached data?")) {
             localStorage.clear();
             location.reload();
         }
     }
 
     function saveState() {
-        localStorage.setItem("globe_state_v4", JSON.stringify({
+        localStorage.setItem("globe_pro_v5", JSON.stringify({
             selected: Array.from(selectedCountries),
             settings,
             rot: projection.rotate(),
-            scale: projection.scale()
+            scale: projection.scale(),
+            tzMode
         }));
     }
 
     function loadState() {
-        const saved = localStorage.getItem("globe_state_v4");
-        if (!saved) return;
-        const data = JSON.parse(saved);
-        selectedCountries = new Set(data.selected);
-        settings = data.settings;
-        projection.rotate(data.rot).scale(data.scale);
+        const saved = JSON.parse(localStorage.getItem("globe_pro_v5") || "{}");
+        if (saved.selected) selectedCountries = new Set(saved.selected);
+        if (saved.settings) settings = saved.settings;
+        if (saved.rot) projection.rotate(saved.rot).scale(saved.scale);
+        if (saved.tzMode) {
+            tzMode = true;
+            document.getElementById("tzToggle").checked = true;
+        }
+        // Sync UI
         Object.keys(settings).forEach(k => {
             const el = document.getElementById(k);
             if(el) el.type === "checkbox" ? el.checked = settings[k] : el.value = settings[k];
         });
-        document.getElementById("zoomSlider").value = data.scale;
     }
 
     function updateList() {
         const list = document.getElementById("country-list");
         list.innerHTML = "";
-        Array.from(selectedCountries).sort().forEach((n, i) => {
+        Array.from(selectedCountries).sort().forEach(n => {
             const li = document.createElement("li");
             li.textContent = n;
             list.appendChild(li);
@@ -376,38 +393,21 @@
     }
 
     function copyMarkdown() {
-        const text = "### Selected Countries\n\n" + 
+        const text = "### " + (tzMode ? "Timezones" : "Countries") + "\n\n" + 
             Array.from(selectedCountries).sort().map((c, i) => `${i+1}. ${c}`).join("\n");
         navigator.clipboard.writeText(text);
-        alert("Numbered list copied to clipboard!");
     }
 
     function importMarkdown() {
-        const input = prompt("Paste your numbered list here:");
-        if (!input) return;
-        const lines = input.match(/\d+\.\s(.*)/g);
-        if (lines) {
-            lines.forEach(l => {
-                const name = l.replace(/^\d+\.\s/, "").trim();
-                selectedCountries.add(name);
-            });
-            saveState();
+        const input = prompt("Paste Markdown list:");
+        if (input) {
+            const lines = input.match(/\d+\.\s(.*)/g);
+            if (lines) lines.forEach(l => selectedCountries.add(l.replace(/^\d+\.\s/, "").trim()));
             render();
         }
     }
 
-    // Load TopoJSON library dynamically for the higher-res source
-    const script = document.createElement('script');
-    script.src = "https://unpkg.com/topojson-client@3";
-    script.onload = init;
-    document.head.appendChild(script);
-
-    window.onresize = () => {
-        width = window.innerWidth; height = window.innerHeight;
-        svg.attr("width", width).attr("height", height);
-        projection.translate([width/2, height/2]);
-        render();
-    };
+    init();
 </script>
 </body>
 </html>
