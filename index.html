@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V11</title>
+    <title>Global Mapper Pro V12</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #222; --bg: #ffffff; --ui-panel: rgba(255, 255, 255, 0.98); }
+        :root { --accent: #222; --bg: #fff; --ui-panel: rgba(255, 255, 255, 0.98); }
         body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: var(--bg); color: var(--accent); }
         
-        #loader { position: fixed; inset: 0; z-index: 100; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        #loader svg { width: 60px; fill: none; stroke: #eee; stroke-width: 2; margin-bottom: 20px; }
+        #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+        .label { position: absolute; font-size: 8px; font-weight: 700; color: #555; pointer-events: none; text-shadow: 0 0 2px #fff; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.3s; }
 
         #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
         #ui * { pointer-events: auto; }
 
-        /* Vertical Zoom Slider */
+        /* Unified Vertical Zoom Bar */
         .zoom-container { 
             position: fixed; right: 25px; top: 50%; transform: translateY(-50%); 
             display: flex; flex-direction: column; align-items: center; gap: 15px;
@@ -26,32 +26,21 @@
         }
         #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
 
-        #compass { position: fixed; top: 20px; right: 20px; width: 50px; height: 50px; cursor: pointer; }
-        #compass path { fill: var(--accent); }
-
-        /* Responsive Settings Panel */
-        #panel {
-            position: fixed; background: var(--ui-panel); box-shadow: 0 0 40px rgba(0,0,0,0.1);
-            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column;
-        }
-
-        /* Desktop: Sidebar Left (Expanded by default) */
+        #panel { position: fixed; background: var(--ui-panel); box-shadow: 0 0 40px rgba(0,0,0,0.1); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; }
+        
+        /* Desktop */
         @media (min-width: 769px) {
             #panel { left: 0; top: 0; width: 340px; height: 100%; transform: translateX(0); }
             #panel.closed { transform: translateX(-295px); }
             .handle { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 45px; height: 80px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-            .handle-tri { transition: transform 0.3s; transform: rotate(-90deg); }
-            #panel.closed .handle-tri { transform: rotate(90deg); }
             .content { padding: 50px 35px; flex-grow: 1; display: flex; flex-direction: column; gap: 30px; overflow-y: auto; }
         }
 
-        /* Mobile: Bottom Dock (Collapsed by default) */
+        /* Mobile */
         @media (max-width: 768px) {
             #panel { bottom: 0; left: 0; right: 0; border-radius: 24px 24px 0 0; transform: translateY(0); }
             #panel.closed { transform: translateY(calc(100% - 45px)); }
             .handle { height: 45px; width: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-            .handle-tri { transition: transform 0.3s; transform: rotate(0deg); }
-            #panel.closed .handle-tri { transform: rotate(180deg); }
             .content { padding: 0 25px 30px; max-height: 45vh; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 20px; }
             .section { flex: 1 1 140px; }
         }
@@ -59,23 +48,15 @@
         .section { display: flex; flex-direction: column; gap: 12px; }
         .section label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #aaa; border-bottom: 1px solid #eee; padding-bottom: 6px; }
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-        input[type="color"] { border: none; width: 22px; height: 22px; cursor: pointer; background: none; }
         button { padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 700; }
-        ol { font-size: 12px; padding-left: 18px; column-count: 2; margin: 0; line-height: 1.6; }
+        ol { font-size: 12px; padding-left: 18px; column-count: 2; margin: 0; }
     </style>
 </head>
 <body>
 
-<div id="loader">
-    <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" stroke="#eee" stroke-width="2" /></svg>
-    <div style="font-size:10px; letter-spacing:3px; color:#ccc">INITIALIZING WORLD</div>
-</div>
+<div id="labels"></div>
 
 <div id="ui">
-    <svg id="compass" viewBox="0 0 100 100" onclick="resetNorth()">
-        <path d="M50 10 L65 50 L50 42 L35 50 Z" />
-    </svg>
-
     <div class="zoom-container">
         <button onclick="zoomBtn(1.2)">+</button>
         <input type="range" id="zoomRange" min="6" max="25" step="0.1" value="15">
@@ -84,29 +65,23 @@
 
     <div id="panel">
         <div class="handle" onclick="togglePanel()">
-            <svg class="handle-tri" width="12" height="12" viewBox="0 0 10 10"><path d="M0 2 L10 2 L5 9 Z" fill="#999"/></svg>
+            <svg width="12" height="12" viewBox="0 0 10 10"><path d="M0 2 L10 2 L5 9 Z" fill="#999"/></svg>
         </div>
         <div class="content">
             <div class="section">
                 <label>Appearance</label>
                 <div class="row">Back <input type="color" id="bgColor" value="#ffffff"></div>
                 <div class="row">Globe <input type="color" id="globeColor" value="#f2f2f2"></div>
-                <div class="row">Fill <input type="color" id="highlightColor" value="#d4af37"></div>
+                <div class="row">Highlight <input type="color" id="highlightColor" value="#d4af37"></div>
+                <div class="row">Labels <input type="checkbox" id="showLabels"> Show Names</div>
             </div>
             <div class="section">
                 <label>Dynamics</label>
                 <div class="row">Borders <input type="color" id="lineColor" value="#c0c0c0"></div>
-                <div class="row">Text <input type="color" id="textColor" value="#333333"></div>
                 <span style="font-size:11px">Auto Drift</span>
-                <input type="range" id="driftInp" min="0" max="0.005" step="0.0001" style="width:100%; accent-color:var(--accent)">
+                <input type="range" id="driftInp" min="0" max="0.005" step="0.0001" style="width:100%; accent-color:#222">
             </div>
-            <div class="section">
-                <label>Actions</label>
-                <button onclick="exportSelection()">COPY MARKDOWN</button>
-                <button onclick="resetColors()">RESET THEME</button>
-                <button onclick="fullWipe()" style="color:red">CLEAR ALL</button>
-            </div>
-            <div class="section" style="width: 100%">
+            <div class="section" style="width:100%">
                 <label>Selection</label>
                 <ol id="country-list"></ol>
             </div>
@@ -119,89 +94,72 @@
         selected: new Set(),
         drift: 0.001,
         registry: [],
-        settings: { bgColor:'#ffffff', globeColor:'#f2f2f2', highlightColor:'#d4af37', lineColor:'#c0c0c0', textColor:'#333333' }
+        showLabels: false,
+        settings: { bgColor:'#ffffff', globeColor:'#f2f2f2', highlightColor:'#d4af37', lineColor:'#c0c0c0' }
     };
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     document.body.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.minDistance = 6;
-    controls.maxDistance = 25;
-    controls.addEventListener('start', () => { state.drift = 0; document.getElementById('driftInp').value = 0; });
-
     const globe = new THREE.Group();
     scene.add(globe);
 
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-
-    // Globe Base
-    const globeBase = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 64, 64),
-        new THREE.MeshBasicMaterial({ color: state.settings.globeColor })
-    );
-    globe.add(globeBase);
+    // Labels Container
+    const labelContainer = document.getElementById('labels');
 
     async function init() {
         camera.position.z = 15;
-        
-        // Use 50m data for better Antarctica resolution
         const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
         const data = await res.json();
         const features = topojson.feature(data, data.objects.countries).features;
 
         features.forEach(feat => {
-            const countryName = feat.properties.name;
             const countryGroup = new THREE.Group();
-
-            // Material using PolygonOffset to prevent z-fighting without visual air-gap
-            const meshMat = new THREE.MeshBasicMaterial({ 
-                color: state.settings.globeColor,
-                polygonOffset: true,
-                polygonOffsetFactor: -1,
-                polygonOffsetUnits: -1
-            });
+            // Offset 5.01 to fix Z-fighting
+            const meshMat = new THREE.MeshBasicMaterial({ color: state.settings.globeColor });
             const borderMat = new THREE.LineBasicMaterial({ color: state.settings.lineColor });
 
             feat.geometry.coordinates.forEach(poly => {
                 const coords = feat.geometry.type === "MultiPolygon" ? poly[0] : poly;
-                if (!coords || coords.length < 3) return;
-
-                const pts = coords.map(c => latLngToVec3(c[1], c[0], 5));
-                
-                // Solid Mesh (Selection Target)
                 const shape = new THREE.Shape(coords.map(c => new THREE.Vector2(c[0], c[1])));
                 const geo = new THREE.ShapeGeometry(shape);
                 const pos = geo.attributes.position;
                 for(let i=0; i<pos.count; i++) {
-                    const v = latLngToVec3(pos.getY(i), pos.getX(i), 5);
+                    const v = latLngToVec3(pos.getY(i), pos.getX(i), 5.01);
                     pos.setXYZ(i, v.x, v.y, v.z);
                 }
-                const mesh = new THREE.Mesh(geo, meshMat.clone());
-                countryGroup.add(mesh);
-
-                // Static Borders
-                const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
-                countryGroup.add(new THREE.Line(lineGeo, borderMat));
+                countryGroup.add(new THREE.Mesh(geo, meshMat.clone()));
+                countryGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(coords.map(c => latLngToVec3(c[1], c[0], 5.01))), borderMat));
             });
 
-            countryGroup.userData = { name: countryName };
+            countryGroup.userData = { 
+                name: feat.properties.name,
+                centroid: getCentroid(feat.geometry.coordinates)
+            };
             globe.add(countryGroup);
-            state.registry.push({ group: countryGroup, name: countryName });
+            state.registry.push({ group: countryGroup, name: feat.properties.name, centroid: countryGroup.userData.centroid });
+            
+            // Create Label Element
+            const div = document.createElement('div');
+            div.className = 'label';
+            div.innerText = feat.properties.name;
+            labelContainer.appendChild(div);
+            countryGroup.userData.label = div;
         });
-
-        loadSettings();
-        // Setup initial panel state
-        if (window.innerWidth <= 768) document.getElementById('panel').classList.add('closed');
         
-        document.getElementById('loader').remove();
         animate();
+    }
+
+    function getCentroid(coords) {
+        // Crude centroid calculation for label placement
+        let lat = 0, lng = 0, count = 0;
+        const process = (c) => { lat += c[1]; lng += c[0]; count++; };
+        coords.forEach(p => Array.isArray(p[0]) ? p[0].forEach(process) : process(p));
+        return { lat: lat/count, lng: lng/count };
     }
 
     function latLngToVec3(lat, lng, r) {
@@ -210,107 +168,64 @@
         return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     }
 
-    // Pointer Event handles both Touch and Click reliably
+    function animate() {
+        requestAnimationFrame(animate);
+        globe.rotation.y += state.drift;
+
+        // Label update
+        if(state.showLabels) {
+            state.registry.forEach(c => {
+                const vec = latLngToVec3(c.centroid.lat, c.centroid.lng, 5.2);
+                vec.project(camera);
+                const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-vec.y * 0.5 + 0.5) * window.innerHeight;
+                
+                // Only show if facing camera
+                const dist = new THREE.Vector3().setFromSphericalCoords(5.1, (90-c.centroid.lat)*Math.PI/180, (c.centroid.lng+180)*Math.PI/180).applyQuaternion(globe.quaternion).dot(camera.getWorldDirection(new THREE.Vector3()));
+                c.group.userData.label.style.opacity = dist > 0 ? 1 : 0;
+                c.group.userData.label.style.left = `${x}px`;
+                c.group.userData.label.style.top = `${y}px`;
+            });
+        } else {
+            document.querySelectorAll('.label').forEach(l => l.style.opacity = 0);
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // Interaction & Logic
     window.addEventListener('pointerdown', (e) => {
         if (e.target.closest('#ui')) return;
-        pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-        pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        
-        raycaster.setFromCamera(pointer, camera);
+        const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObjects(globe.children, true);
-        
-        if (hits.length > 0) {
+        if(hits.length > 0) {
             let p = hits[0].object;
             while(p && !p.userData.name) p = p.parent;
-            if(p && p.userData.name) {
-                const name = p.userData.name;
-                state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
+            if(p) {
+                state.selected.has(p.userData.name) ? state.selected.delete(p.userData.name) : state.selected.add(p.userData.name);
                 updateVisuals();
-                saveSettings();
             }
         }
     });
 
     function updateVisuals() {
-        document.documentElement.style.setProperty('--bg', state.settings.bgColor);
-        document.documentElement.style.setProperty('--accent', state.settings.textColor);
-        renderer.setClearColor(state.settings.bgColor);
-        globeBase.material.color.set(state.settings.globeColor);
-
         state.registry.forEach(c => {
             const isSel = state.selected.has(c.name);
-            c.group.children.forEach(child => {
-                if (child instanceof THREE.Mesh) {
-                    child.material.color.set(isSel ? state.settings.highlightColor : state.settings.globeColor);
-                } else if (child instanceof THREE.Line) {
-                    child.material.color.set(state.settings.lineColor);
-                }
+            c.group.children.forEach(ch => {
+                if(ch instanceof THREE.Mesh) ch.material.color.set(isSel ? state.settings.highlightColor : state.settings.globeColor);
             });
         });
-
         document.getElementById('country-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
     }
 
-    function animate() {
-        requestAnimationFrame(animate);
-        TWEEN.update();
-        globe.rotation.y += state.drift;
-        
-        // Correct Compass Logic
-        const nPos = new THREE.Vector3(0, 5, 0).applyQuaternion(globe.quaternion).project(camera);
-        document.getElementById('compass').style.transform = `rotate(${Math.atan2(nPos.x, nPos.y)}rad)`;
-        
-        controls.update();
-        renderer.render(scene, camera);
-        document.getElementById('zoomRange').value = camera.position.length();
-    }
-
-    // Controls Logic
     function togglePanel() { document.getElementById('panel').classList.toggle('closed'); }
-    function resetNorth() { new TWEEN.Tween(globe.rotation).to({ x: 0 }, 600).easing(TWEEN.Easing.Quadratic.Out).start(); }
     function zoomBtn(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
-
-    document.querySelectorAll('input').forEach(i => {
-        i.oninput = (e) => {
-            if (e.target.id === 'zoomRange') camera.position.setLength(e.target.value);
-            else if (e.target.id === 'driftInp') state.drift = parseFloat(e.target.value);
-            else state.settings[e.target.id] = e.target.value;
-            updateVisuals();
-        };
-    });
-
-    function saveSettings() {
-        localStorage.setItem('v11_pro', JSON.stringify({
-            sel: [...state.selected], set: state.settings, rot: [globe.rotation.x, globe.rotation.y]
-        }));
-    }
-
-    function loadSettings() {
-        const s = JSON.parse(localStorage.getItem('v11_pro') || '{}');
-        if (s.sel) state.selected = new Set(s.sel);
-        if (s.set) state.settings = s.set;
-        if (s.rot) { globe.rotation.x = s.rot[0]; globe.rotation.y = s.rot[1]; }
-        updateVisuals();
-    }
-
-    function exportSelection() {
-        const list = "### My Map Selection\n\n" + [...state.selected].sort().map(n => `* ${n}`).join('\n');
-        navigator.clipboard.writeText(list);
-        alert("Selection copied as Markdown!");
-    }
-
-    function resetColors() {
-        state.settings = { bgColor:'#ffffff', globeColor:'#f2f2f2', highlightColor:'#d4af37', lineColor:'#c0c0c0', textColor:'#333333' };
-        updateVisuals();
-    }
-
-    function fullWipe() { if(confirm("Clear all data?")) { localStorage.clear(); location.reload(); } }
-
-    window.onresize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    };
+    document.getElementById('showLabels').onchange = (e) => state.showLabels = e.target.checked;
+    document.getElementById('driftInp').oninput = (e) => state.drift = parseFloat(e.target.value);
+    window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
     init();
 </script>
