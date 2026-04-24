@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V13</title>
+    <title>Global Mapper Pro V14</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #222; --bg: #ffffff; --ui: rgba(255, 255, 255, 0.95); }
+        :root { --accent: #333; --bg: #fff; --ui: rgba(255, 255, 255, 0.95); }
         body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: #fff; }
         
         #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
@@ -18,7 +18,7 @@
         .zoom-tray { position: fixed; right: 25px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 15px; background: var(--ui); padding: 20px 10px; border-radius: 40px; border: 1px solid #eee; z-index: 20; }
         #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
 
-        /* V11 Style Panel */
+        /* Panel logic */
         #panel { position: fixed; background: var(--ui); box-shadow: 0 0 40px rgba(0,0,0,0.1); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 20; }
         @media (min-width: 769px) {
             #panel { left: 0; top: 0; width: 340px; height: 100%; transform: translateX(0); }
@@ -37,6 +37,7 @@
         .section { display: flex; flex-direction: column; gap: 12px; }
         .section label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #aaa; border-bottom: 1px solid #eee; padding-bottom: 6px; }
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        input[type="color"] { border: none; width: 22px; height: 22px; cursor: pointer; background: none; }
         button { padding: 8px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 10px; }
         ol { font-size: 12px; padding-left: 18px; column-count: 2; }
     </style>
@@ -50,15 +51,21 @@
     <button onclick="zoomBtn(0.8)">-</button>
 </div>
 
-<div id="panel">
+<div id="panel" class="closed">
     <div class="handle" onclick="document.getElementById('panel').classList.toggle('closed')">
         <svg width="12" height="12" viewBox="0 0 10 10"><path d="M0 2 L10 2 L5 9 Z" fill="#999"/></svg>
     </div>
     <div class="content">
         <div class="section">
-            <label>Settings</label>
-            <div class="row">Labels <input type="checkbox" id="showLabels"></div>
+            <label>Theme</label>
+            <div class="row">Back <input type="color" id="bgColor" value="#ffffff"></div>
+            <div class="row">Globe <input type="color" id="globeColor" value="#f2f2f2"></div>
             <div class="row">Highlight <input type="color" id="hlColor" value="#d4af37"></div>
+        </div>
+        <div class="section">
+            <label>Dynamics</label>
+            <div class="row">Labels <input type="checkbox" id="showLabels"></div>
+            <div class="row">Drift <input type="range" id="driftInp" min="0" max="0.005" step="0.0001" value="0.001"></div>
         </div>
         <div class="section">
             <label>Selection</label>
@@ -68,13 +75,13 @@
 </div>
 
 <script>
-    let state = { selected: new Set(), showLabels: false, registry: [] };
+    let state = { selected: new Set(), showLabels: false, registry: [], drift: 0.001 };
     let isDragging = false;
     let startPos = {x:0, y:0};
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true }); // No alpha for solid globe
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setClearColor(0xffffff, 1);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
@@ -83,19 +90,27 @@
     const globe = new THREE.Group();
     scene.add(globe);
 
+    // The Base Globe is back
+    const baseGlobe = new THREE.Mesh(
+        new THREE.SphereGeometry(5, 64, 64),
+        new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })
+    );
+    globe.add(baseGlobe);
+
     async function init() {
         camera.position.z = 15;
+        // Panel Setup: Open by default on desktop, closed on mobile
+        if(window.innerWidth > 768) document.getElementById('panel').classList.remove('closed');
+
         const data = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r=>r.json());
         const features = topojson.feature(data, data.objects.countries).features;
 
         features.forEach(feat => {
             const group = new THREE.Group();
-            const mat = new THREE.MeshBasicMaterial({ color: 0xf2f2f2, polygonOffset: true, polygonOffsetFactor: 1 });
+            const mat = new THREE.MeshBasicMaterial({ color: 0xf2f2f2, polygonOffset: true, polygonOffsetFactor: -1 });
             
-            // Build geometry
             feat.geometry.coordinates.forEach(poly => {
                 const coords = feat.geometry.type === "MultiPolygon" ? poly[0] : poly;
-                // Use a simple triangulation approach
                 const pts = coords.map(c => latLngToVec3(c[1], c[0], 5.01));
                 const geo = new THREE.BufferGeometry().setFromPoints(pts);
                 group.add(new THREE.Mesh(geo, mat.clone()));
@@ -129,6 +144,7 @@
 
     function animate() {
         requestAnimationFrame(animate);
+        globe.rotation.y += state.drift;
         
         state.registry.forEach(c => {
             if(!state.showLabels) { c.group.userData.label.style.opacity = 0; return; }
@@ -144,11 +160,9 @@
         document.getElementById('zoomRange').value = camera.position.length();
     }
 
-    // Input Handling
+    // Interaction
     window.addEventListener('pointerdown', (e) => { isDragging = false; startPos = {x:e.clientX, y:e.clientY}; });
-    window.addEventListener('pointermove', (e) => { 
-        if(Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y) > 5) isDragging = true; 
-    });
+    window.addEventListener('pointermove', (e) => { if(Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y) > 5) isDragging = true; });
     window.addEventListener('pointerup', (e) => {
         if(isDragging || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
         const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
@@ -157,22 +171,30 @@
         const hits = raycaster.intersectObjects(globe.children, true);
         if(hits.length > 0) {
             const name = hits[0].object.parent.userData.name;
+            if(!name) return;
             state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
             updateVisuals();
         }
     });
 
     function updateVisuals() {
+        const hl = document.getElementById('hlColor').value;
+        const globeCol = document.getElementById('globeColor').value;
+        baseGlobe.material.color.set(globeCol);
+        renderer.setClearColor(document.getElementById('bgColor').value, 1);
         state.registry.forEach(c => {
             const sel = state.selected.has(c.name);
-            c.group.children.forEach(m => m.material.color.set(sel ? document.getElementById('hlColor').value : 0xf2f2f2));
+            c.group.children.forEach(m => m.material.color.set(sel ? hl : globeCol));
         });
         document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
     }
 
+    // Listeners
     document.getElementById('showLabels').onchange = (e) => state.showLabels = e.target.checked;
-    function zoomBtn(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
+    document.getElementById('driftInp').oninput = (e) => state.drift = parseFloat(e.target.value);
+    document.querySelectorAll('input[type="color"]').forEach(i => i.oninput = updateVisuals);
     document.getElementById('zoomRange').oninput = (e) => camera.position.setLength(e.target.value);
+    function zoomBtn(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
     window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
     init();
