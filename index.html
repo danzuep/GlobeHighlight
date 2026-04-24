@@ -3,44 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V16</title>
+    <title>Global Mapper Pro V17</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #222; --bg: #fff; --ui: rgba(255, 255, 255, 0.98); }
-        body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: #fff; }
+        :root { --accent: #111; --bg: #ffffff; --ui: rgba(255, 255, 255, 0.98); }
+        body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: #fff; color: var(--accent); }
         
+        /* Labels */
         #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-        .label { position: absolute; font-size: 9px; font-weight: 700; color: #444; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; white-space: nowrap; text-shadow: 0 0 3px #fff; }
+        .label { position: absolute; font-size: 10px; font-weight: 800; color: #222; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; white-space: nowrap; text-shadow: 0 0 4px #fff; transition: opacity 0.2s; }
 
-        /* Fixed Vertical Zoom - Universal */
-        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 8px; border-radius: 30px; border: 1px solid #ddd; z-index: 20; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 160px; accent-color: var(--accent); cursor: pointer; }
+        /* Unified Vertical Zoom Bar */
+        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #ddd; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 8px; height: 180px; accent-color: var(--accent); cursor: pointer; border: none; }
 
-        /* Smart Panel (V11 Layout) */
-        #panel { position: fixed; background: var(--ui); box-shadow: 0 0 30px rgba(0,0,0,0.1); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 30; }
+        /* Smart Panel */
+        #panel { position: fixed; background: var(--ui); box-shadow: 0 0 30px rgba(0,0,0,0.12); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 200; border: 1px solid #eee; }
         
         @media (min-width: 769px) {
-            #panel { left: 0; top: 0; width: 320px; height: 100%; transform: translateX(0); }
-            #panel.closed { transform: translateX(-275px); }
-            .handle { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 45px; height: 100px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+            #panel { left: 0; top: 0; width: 340px; height: 100%; transform: translateX(0); }
+            #panel.closed { transform: translateX(-340px); }
+            .handle { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); width: 40px; height: 80px; background: var(--ui); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; border-left: none; border-radius: 0 12px 12px 0; }
+            .handle svg { transition: transform 0.3s; transform: rotate(90deg); }
+            #panel.closed .handle svg { transform: rotate(-90deg); }
             .content { padding: 40px 30px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 25px; }
         }
 
         @media (max-width: 768px) {
-            #panel { bottom: 0; left: 0; right: 0; border-radius: 20px 20px 0 0; transform: translateY(0); }
-            #panel.closed { transform: translateY(calc(100% - 45px)); }
-            .handle { height: 45px; width: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-            .content { padding: 0 20px 30px; max-height: 45vh; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 15px; }
+            #panel { bottom: 0; left: 0; right: 0; border-radius: 24px 24px 0 0; transform: translateY(0); }
+            #panel.closed { transform: translateY(calc(100% - 50px)); }
+            .handle { height: 50px; width: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+            .handle svg { transition: transform 0.3s; transform: rotate(0deg); }
+            #panel.closed .handle svg { transform: rotate(180deg); }
+            .content { padding: 0 24px 30px; max-height: 50vh; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 18px; }
             .section { flex: 1 1 140px; }
         }
 
-        .section { display: flex; flex-direction: column; gap: 8px; }
-        .section label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #999; border-bottom: 1px solid #eee; padding-bottom: 4px; }
-        .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-        input[type="color"] { border: none; width: 22px; height: 22px; cursor: pointer; background: none; }
-        ol { font-size: 11px; padding-left: 15px; column-count: 2; }
+        .section { display: flex; flex-direction: column; gap: 10px; }
+        .section label { font-size: 11px; font-weight: 900; text-transform: uppercase; color: #bbb; letter-spacing: 1px; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
+        .row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 500; }
+        
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
+        button { padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; transition: all 0.2s; }
+        button:hover { background: #f9f9f9; border-color: #999; }
+        button.primary { background: var(--accent); color: #fff; border: none; }
+
+        ol { font-size: 12px; padding-left: 18px; column-count: 2; margin: 0; color: #555; }
+        input[type="color"] { border: none; width: 24px; height: 24px; cursor: pointer; background: none; }
     </style>
 </head>
 <body>
@@ -52,117 +63,107 @@
     <button onclick="zoomStep(0.8)">-</button>
 </div>
 
-<div id="panel" class="closed">
+<div id="panel">
     <div class="handle" onclick="document.getElementById('panel').classList.toggle('closed')">
-        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0 L10 0 L5 8 Z" fill="#999"/></svg>
+        <svg width="12" height="12" viewBox="0 0 10 10"><path d="M0 2 L10 2 L5 9 Z" fill="#666"/></svg>
     </div>
     <div class="content">
         <div class="section">
-            <label>Theme</label>
-            <div class="row">Back <input type="color" id="colorBg" value="#ffffff"></div>
-            <div class="row">Globe <input type="color" id="colorGlobe" value="#f2f2f2"></div>
-            <div class="row">Highlight <input type="color" id="colorHl" value="#d4af37"></div>
+            <label>Interface</label>
+            <div class="row">Back <input type="color" id="cfgBg" value="#ffffff"></div>
+            <div class="row">Globe <input type="color" id="cfgGlobe" value="#f2f2f2"></div>
+            <div class="row">Highlight <input type="color" id="cfgHl" value="#d4af37"></div>
+            <div class="row">Show Names <input type="checkbox" id="cfgLabels"></div>
         </div>
+        
         <div class="section">
-            <label>Display</label>
-            <div class="row">Borders <input type="color" id="colorLine" value="#cccccc"></div>
-            <div class="row">Labels <input type="checkbox" id="checkLabels"></div>
-            <div class="row">Drift <input type="range" id="driftInp" min="0" max="0.005" step="0.0001" value="0.0005"></div>
+            <label>Data Export</label>
+            <div class="btn-group">
+                <button onclick="exportData('json')">JSON</button>
+                <button onclick="exportData('csv')">CSV</button>
+            </div>
+            <button class="primary" onclick="state.selected.clear(); updateVisuals();">Clear Selection</button>
         </div>
+
         <div class="section" style="width:100%">
-            <label>Selected</label>
+            <label>Selected (<span id="sel-count">0</span>)</label>
             <ol id="sel-list"></ol>
         </div>
     </div>
 </div>
 
 <script>
-    const state = { selected: new Set(), showLabels: false, drift: 0.0005, registry: [] };
+    const state = { selected: new Set(), labels: false, drift: 0.0006, registry: [] };
     let dragStart = { x: 0, y: 0 }, isDragging = false;
 
+    // Initialize Scene
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setClearColor(0xffffff, 1);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-
     const globe = new THREE.Group();
     scene.add(globe);
 
-    // Opaque Base Globe
-    const baseSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 64, 64),
-        new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })
-    );
-    globe.add(baseSphere);
+    // Base Planet
+    const baseGeo = new THREE.SphereGeometry(5, 64, 64);
+    const baseMat = new THREE.MeshBasicMaterial({ color: 0xf2f2f2 });
+    const planet = new THREE.Mesh(baseGeo, baseMat);
+    globe.add(planet);
 
     async function init() {
         camera.position.z = 15;
-        if (window.innerWidth > 768) document.getElementById('panel').classList.remove('closed');
+        if (window.innerWidth <= 768) document.getElementById('panel').classList.add('closed');
 
-        const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
-        const topo = await res.json();
-        const geojson = topojson.feature(topo, topo.objects.countries);
+        const data = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(r=>r.json());
+        const geojson = topojson.feature(data, data.objects.countries);
 
         geojson.features.forEach(feat => {
             const countryGroup = new THREE.Group();
-            const name = feat.properties.name;
-            const centroid = getCentroid(feat.geometry.coordinates);
-            const centroidV3 = latLngToVec3(centroid.lat, centroid.lng, 5.01);
-
             const coords = feat.geometry.type === "MultiPolygon" ? feat.geometry.coordinates : [feat.geometry.coordinates];
             
-            coords.forEach(polygon => {
-                const ring = polygon[0];
+            coords.forEach(poly => {
+                const ring = poly[0];
                 if (!ring || ring.length < 3) return;
 
-                // 1. MESH FILL (The Fan Strategy)
-                const geometry = new THREE.BufferGeometry();
-                const vertices = [];
-                const center = centroidV3;
+                // Create projected 2D shape for triangulation
+                const shape = new THREE.Shape();
+                shape.moveTo(ring[0][0], ring[0][1]);
+                for(let i=1; i<ring.length; i++) shape.lineTo(ring[i][0], ring[i][1]);
 
-                for (let i = 0; i < ring.length; i++) {
-                    const p1 = latLngToVec3(ring[i][1], ring[i][0], 5.01);
-                    const p2 = latLngToVec3(ring[(i + 1) % ring.length][1], ring[(i + 1) % ring.length][0], 5.01);
-                    
-                    vertices.push(center.x, center.y, center.z);
-                    vertices.push(p1.x, p1.y, p1.z);
-                    vertices.push(p2.x, p2.y, p2.z);
+                // Triangulate and then wrap to sphere
+                const geometry = new THREE.ShapeGeometry(shape, 2); // '2' adds slight internal subdivision
+                const pos = geometry.attributes.position;
+                for(let i=0; i<pos.count; i++) {
+                    const v = latLngToVec3(pos.getY(i), pos.getX(i), 5.01);
+                    pos.setXYZ(i, v.x, v.y, v.z);
                 }
-
-                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-                geometry.computeVertexNormals();
-
+                
                 const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ 
-                    color: 0xf2f2f2, 
-                    side: THREE.DoubleSide,
-                    polygonOffset: true,
-                    polygonOffsetFactor: -1
+                    color: 0xf2f2f2, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 
                 }));
                 countryGroup.add(mesh);
 
-                // 2. BORDERS (The Line Strategy)
-                const linePts = ring.map(pt => latLngToVec3(pt[1], pt[0], 5.02));
-                const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
-                countryGroup.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xcccccc })));
+                // Border Outline
+                const linePts = ring.map(pt => latLngToVec3(pt[1], pt[0], 5.01));
+                countryGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(linePts), new THREE.LineBasicMaterial({ color: 0xcccccc })));
             });
 
-            countryGroup.userData = { name, centroid };
+            const centroid = getCentroid(coords);
+            countryGroup.userData = { name: feat.properties.name, centroid };
             globe.add(countryGroup);
-            
-            // Label UI
+
             const lbl = document.createElement('div');
             lbl.className = 'label';
-            lbl.innerText = name;
+            lbl.innerText = feat.properties.name;
             document.getElementById('labels').appendChild(lbl);
-            
-            state.registry.push({ group: countryGroup, name, label: lbl, centroid });
-        });
 
+            state.registry.push({ group: countryGroup, name: feat.properties.name, label: lbl, centroid });
+        });
         animate();
     }
 
@@ -174,49 +175,8 @@
 
     function getCentroid(coords) {
         let lat = 0, lng = 0, count = 0;
-        const process = (c) => { lat += c[1]; lng += c[0]; count++; };
-        coords.forEach(p => Array.isArray(p[0]) ? p[0].forEach(process) : process(p));
-        return { lat: lat / count, lng: lng / count };
-    }
-
-    // --- Interaction ---
-    window.addEventListener('pointerdown', (e) => { dragStart = { x: e.clientX, y: e.clientY }; isDragging = false; });
-    window.addEventListener('pointermove', (e) => { if (Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > 8) isDragging = true; });
-    window.addEventListener('pointerup', (e) => {
-        if (isDragging || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
-
-        const mouse = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-
-        const hits = raycaster.intersectObjects(globe.children, true);
-        if (hits.length > 0) {
-            let o = hits[0].object;
-            while(o.parent && !o.userData.name) o = o.parent;
-            if (o.userData.name) {
-                const n = o.userData.name;
-                state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
-                updateVisuals();
-            }
-        }
-    });
-
-    function updateVisuals() {
-        const hl = document.getElementById('colorHl').value;
-        const gl = document.getElementById('colorGlobe').value;
-        const bc = document.getElementById('colorLine').value;
-        
-        renderer.setClearColor(document.getElementById('colorBg').value);
-        baseSphere.material.color.set(gl);
-
-        state.registry.forEach(c => {
-            const isSel = state.selected.has(c.name);
-            c.group.children.forEach(child => {
-                if (child instanceof THREE.Mesh) child.material.color.set(isSel ? hl : gl);
-                if (child instanceof THREE.Line) child.material.color.set(bc);
-            });
-        });
-        document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
+        coords.forEach(p => p[0].forEach(c => { lat += c[1]; lng += c[0]; count++; }));
+        return { lat: lat/count, lng: lng/count };
     }
 
     function animate() {
@@ -225,11 +185,12 @@
         controls.update();
 
         state.registry.forEach(c => {
-            if (!state.showLabels) { c.label.style.opacity = 0; return; }
+            if(!state.labels) { c.label.style.opacity = 0; return; }
             const v = latLngToVec3(c.centroid.lat, c.centroid.lng, 5.05).applyMatrix4(globe.matrixWorld);
-            const dot = v.clone().normalize().dot(camera.position.clone().normalize());
+            const cameraDir = new THREE.Vector3().subVectors(camera.position, v).normalize();
+            const surfaceNormal = v.clone().normalize();
             
-            if (dot > 0.4) { // Only front-facing labels
+            if (surfaceNormal.dot(cameraDir) > 0.1) {
                 v.project(camera);
                 c.label.style.opacity = 1;
                 c.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
@@ -243,12 +204,54 @@
         document.getElementById('zoomRange').value = camera.position.length();
     }
 
+    // Interactions
+    window.addEventListener('pointerdown', e => { dragStart = {x:e.clientX, y:e.clientY}; isDragging = false; });
+    window.addEventListener('pointermove', e => { if(Math.hypot(e.clientX-dragStart.x, e.clientY-dragStart.y) > 10) isDragging = true; });
+    window.addEventListener('pointerup', e => {
+        if (isDragging || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
+        const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(mouse, camera);
+        const hits = ray.intersectObjects(globe.children, true);
+        if (hits.length > 0) {
+            let o = hits[0].object;
+            while(o.parent && !o.userData.name) o = o.parent;
+            if(o.userData.name) {
+                const n = o.userData.name;
+                state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
+                updateVisuals();
+            }
+        }
+    });
+
+    function updateVisuals() {
+        const hlc = document.getElementById('cfgHl').value;
+        const gbc = document.getElementById('cfgGlobe').value;
+        renderer.setClearColor(document.getElementById('cfgBg').value);
+        planet.material.color.set(gbc);
+
+        state.registry.forEach(c => {
+            const isSel = state.selected.has(c.name);
+            c.group.children.forEach(m => { if(m instanceof THREE.Mesh) m.material.color.set(isSel ? hlc : gbc); });
+        });
+
+        document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
+        document.getElementById('sel-count').innerText = state.selected.size;
+    }
+
     function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
+    function exportData(type) {
+        const content = type === 'csv' ? "Country\n" + [...state.selected].join("\n") : JSON.stringify([...state.selected]);
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `selection.${type}`; a.click();
+    }
+
+    document.getElementById('cfgLabels').onchange = (e) => state.labels = e.target.checked;
     document.getElementById('zoomRange').oninput = (e) => camera.position.setLength(e.target.value);
-    document.getElementById('driftInp').oninput = (e) => state.drift = parseFloat(e.target.value);
-    document.getElementById('checkLabels').onchange = (e) => state.showLabels = e.target.checked;
     document.querySelectorAll('input[type="color"]').forEach(i => i.oninput = updateVisuals);
-    window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+    window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
     init();
 </script>
