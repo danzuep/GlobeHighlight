@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V19</title>
+    <title>Global Mapper Pro V20</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
@@ -11,12 +11,15 @@
         :root { --accent: #111; --bg: #ffffff; --ui: rgba(255, 255, 255, 0.98); }
         body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: #fff; color: var(--accent); }
         
+        /* Floating Labels */
         #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-        .label { position: absolute; font-size: 9px; font-weight: 800; color: #222; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; text-shadow: 0 0 4px #fff; }
+        .label { position: absolute; font-size: 10px; font-weight: 800; color: #222; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; text-shadow: 0 0 4px #fff; transition: opacity 0.2s; }
 
-        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #eee; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        /* Fixed Vertical Zoom Tray */
+        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #ddd; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
         #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
 
+        /* Unified Control Panel */
         #panel { position: fixed; background: var(--ui); box-shadow: 0 0 40px rgba(0,0,0,0.12); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 200; border: 1px solid #eee; }
         
         @media (min-width: 769px) {
@@ -66,15 +69,15 @@
     </div>
     <div class="content">
         <div class="section">
-            <label>Theme</label>
+            <label>Interface</label>
             <div class="row">Back <input type="color" id="cfgBg" value="#ffffff"></div>
-            <div class="row">Ocean <input type="color" id="cfgGlobe" value="#f2f2f2"></div>
-            <div class="row">Land <input type="color" id="cfgLand" value="#e8e8e8"></div>
-            <div class="row">Select <input type="color" id="cfgHl" value="#d4af37"></div>
+            <div class="row">Ocean <input type="color" id="cfgOcean" value="#f2f2f2"></div>
+            <div class="row">Highlight <input type="color" id="cfgHl" value="#d4af37"></div>
+            <div class="row">Labels <input type="checkbox" id="cfgLabels" checked></div>
         </div>
         
         <div class="section">
-            <label>Export Selection</label>
+            <label>Export</label>
             <div class="export-box">
                 <select id="exportFormat">
                     <option value="md">Markdown (.md)</option>
@@ -83,11 +86,11 @@
                 </select>
                 <button onclick="handleExport()">Download</button>
             </div>
-            <button class="primary" onclick="state.selected.clear(); updateVisuals();">Clear Map</button>
+            <button class="primary" onclick="state.selected.clear(); updateVisuals();">Clear Selection</button>
         </div>
 
         <div class="section" style="width:100%">
-            <label>Countries (<span id="sel-count">0</span>)</label>
+            <label>Selection (<span id="sel-count">0</span>)</label>
             <ol id="sel-list"></ol>
         </div>
     </div>
@@ -118,16 +121,12 @@
     const globe = new THREE.Group();
     scene.add(globe);
 
-    // Ocean Sphere
+    // Ocean Base
     const ocean = new THREE.Mesh(
         new THREE.SphereGeometry(5, 64, 64),
-        new THREE.MeshPhongMaterial({ color: 0xf2f2f2, transparent: true, opacity: 0.9, shininess: 10 })
+        new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })
     );
     globe.add(ocean);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.3);
-    sun.position.set(5, 3, 5);
-    scene.add(sun);
 
     // --- GEOMETRY ENGINE ---
     async function init() {
@@ -145,36 +144,40 @@
                 const ring = poly[0];
                 if (!ring || ring.length < 3) return;
 
-                // Subdivided Spherical Mesh
+                // Subdivided Curvature Geometry
                 const geometry = new THREE.BufferGeometry();
                 const vertices = [];
                 const centroid = getCentroid(ring);
-                const cV3 = latLngToVec3(centroid[1], centroid[0], 5.02);
+                const cV3 = latLngToVec3(centroid[1], centroid[0], 5.01);
 
-                ring.forEach((pt, i) => {
-                    const p1 = latLngToVec3(pt[1], pt[0], 5.02);
-                    const p2 = latLngToVec3(ring[(i + 1) % ring.length][1], ring[(i + 1) % ring.length][0], 5.02);
+                for (let i = 0; i < ring.length; i++) {
+                    const p1 = latLngToVec3(ring[i][1], ring[i][0], 5.01);
+                    const p2 = latLngToVec3(ring[(i + 1) % ring.length][1], ring[(i + 1) % ring.length][0], 5.01);
                     
-                    // Add subdivision point for large polygons (Australia fix)
-                    const mid = new THREE.Vector3().addVectors(p1, p2).divideScalar(2).setLength(5.02);
+                    // Add middle interpolation point to "hug" the sphere curve
+                    const mid = new THREE.Vector3().addVectors(p1, p2).divideScalar(2).setLength(5.01);
                     
                     vertices.push(cV3.x, cV3.y, cV3.z, p1.x, p1.y, p1.z, mid.x, mid.y, mid.z);
                     vertices.push(cV3.x, cV3.y, cV3.z, mid.x, mid.y, mid.z, p2.x, p2.y, p2.z);
-                });
+                }
 
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
                 geometry.computeVertexNormals();
 
-                const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ 
-                    color: 0xe8e8e8, roughness: 0.8, metalness: 0.1, side: THREE.DoubleSide
+                const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ 
+                    color: 0xf2f2f2, 
+                    side: THREE.DoubleSide,
+                    polygonOffset: true,
+                    polygonOffsetFactor: -1
                 }));
                 countryGroup.add(mesh);
 
-                // Sharp Outlines
-                const linePts = ring.map(pt => latLngToVec3(pt[1], pt[0], 5.025));
+                // Outline
+                const linePts = ring.map(pt => latLngToVec3(pt[1], pt[0], 5.015));
                 countryGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(linePts), new THREE.LineBasicMaterial({ color: 0xcccccc })));
             });
 
+            const c = getCentroid(coords[0][0]);
             countryGroup.userData = { name: feat.properties.name, id: idx };
             globe.add(countryGroup);
 
@@ -183,8 +186,9 @@
             lbl.innerText = feat.properties.name;
             document.getElementById('labels').appendChild(lbl);
 
-            state.registry.push({ group: countryGroup, name: feat.properties.name, label: lbl, centroid: {lat: centroid[1], lng: centroid[0]} });
+            state.registry.push({ group: countryGroup, name: feat.properties.name, label: lbl, centroid: {lat: c[1], lng: c[0]} });
         });
+        
         updateVisuals();
         animate();
     }
@@ -201,22 +205,22 @@
         return [x/pts.length, y/pts.length];
     }
 
-    // --- ANIMATION & LOGIC ---
+    // --- ANIMATION LOOP ---
     function animate() {
         requestAnimationFrame(animate);
         
-        // Scale rotation by zoom level
-        const zoomFactor = 15 / camera.position.length();
-        globe.rotation.y += state.drift * zoomFactor;
+        // Scale rotation by zoom level (closer = slower)
+        const zoomRatio = THREE.MathUtils.clamp(camera.position.length() / 15, 0.2, 1.5);
+        globe.rotation.y += state.drift * zoomRatio;
         
         controls.update();
 
         state.registry.forEach(c => {
+            if(!state.labels) { c.label.style.opacity = 0; return; }
             const v = latLngToVec3(c.centroid.lat, c.centroid.lng, 5.05).applyMatrix4(globe.matrixWorld);
             const cameraDir = new THREE.Vector3().subVectors(camera.position, v).normalize();
-            const dot = v.clone().normalize().dot(cameraDir);
             
-            if (dot > 0.25) {
+            if (v.clone().normalize().dot(cameraDir) > 0.2) {
                 v.project(camera);
                 c.label.style.opacity = 1;
                 c.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
@@ -230,9 +234,9 @@
         document.getElementById('zoomRange').value = camera.position.length();
     }
 
-    // --- CORE SELECTION FEATURE (Lat/Lng Lookup) ---
+    // --- INTERACTION & SELECTION ---
     window.addEventListener('pointerdown', e => { dragStart = {x:e.clientX, y:e.clientY}; isDragging = false; });
-    window.addEventListener('pointermove', e => { if(Math.hypot(e.clientX-dragStart.x, e.clientY-dragStart.y) > 10) isDragging = true; });
+    window.addEventListener('pointermove', e => { if(Math.hypot(e.clientX-dragStart.x, e.clientY-dragStart.y) > 8) isDragging = true; });
     window.addEventListener('pointerup', e => {
         if (isDragging || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
 
@@ -246,8 +250,7 @@
             const lat = 90 - (Math.acos(pt.y / 5) * 180 / Math.PI);
             const lng = ((Math.atan2(pt.z, -pt.x) * 180 / Math.PI) + 180) % 360 - 180;
 
-            // Accurate Point-in-Polygon Check
-            const found = state.features.find(f => isPointInCountry([lng, lat], f));
+            const found = state.features.find(f => isPointInPoly([lng, lat], f));
             if (found) {
                 const n = found.properties.name;
                 state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
@@ -256,7 +259,7 @@
         }
     });
 
-    function isPointInCountry(pt, feat) {
+    function isPointInPoly(pt, feat) {
         const coords = feat.geometry.type === "MultiPolygon" ? feat.geometry.coordinates : [feat.geometry.coordinates];
         return coords.some(poly => {
             const ring = poly[0];
@@ -270,15 +273,13 @@
 
     function updateVisuals() {
         const hlc = document.getElementById('cfgHl').value;
-        const lnc = document.getElementById('cfgLand').value;
-        const bgc = document.getElementById('cfgBg').value;
-        
-        renderer.setClearColor(bgc);
-        ocean.material.color.set(document.getElementById('cfgGlobe').value);
+        const gbc = document.getElementById('cfgOcean').value;
+        renderer.setClearColor(document.getElementById('cfgBg').value);
+        ocean.material.color.set(gbc);
 
         state.registry.forEach(c => {
             const isSel = state.selected.has(c.name);
-            c.group.children.forEach(m => { if(m instanceof THREE.Mesh) m.material.color.set(isSel ? hlc : lnc); });
+            c.group.children.forEach(m => { if(m instanceof THREE.Mesh) m.material.color.set(isSel ? hlc : gbc); });
         });
 
         document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
@@ -288,17 +289,18 @@
     function handleExport() {
         const type = document.getElementById('exportFormat').value;
         const list = [...state.selected].sort();
-        let content = type === 'md' ? "## Selection\n" + list.map(n => `- [x] ${n}`).join("\n") : 
-                      type === 'json' ? JSON.stringify(list) : "Country\n" + list.join("\n");
+        let content = type === 'md' ? "### Map Selection\n\n" + list.map(n => `- [x] ${n}`).join("\n") : 
+                      type === 'json' ? JSON.stringify(list, null, 2) : "Country\n" + list.join("\n");
         
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = `world-map.${type}`; a.click();
+        a.href = url; a.download = `globe-export.${type}`; a.click();
     }
 
     function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
     document.getElementById('zoomRange').oninput = (e) => camera.position.setLength(e.target.value);
+    document.getElementById('cfgLabels').onchange = (e) => state.labels = e.target.checked;
     document.querySelectorAll('input[type="color"]').forEach(i => i.oninput = updateVisuals);
     window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
