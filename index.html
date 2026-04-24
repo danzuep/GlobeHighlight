@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V23</title>
+    <title>Global Mapper Pro V24</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
@@ -15,7 +15,7 @@
         .label { position: absolute; font-size: 10px; font-weight: 800; color: #222; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; text-shadow: 0 0 4px #fff; }
 
         .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #ddd; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
-        #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
+        #zoomRange { appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
 
         #panel { position: fixed; background: var(--ui); box-shadow: 0 0 40px rgba(0,0,0,0.12); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 200; border: 1px solid #eee; }
         
@@ -40,9 +40,9 @@
         .section label { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #bbb; letter-spacing: 1.5px; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; }
         
-        .export-box { display: flex; gap: 5px; }
-        select { flex-grow: 1; padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 11px; background: #fff; }
-        button { padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; transition: 0.2s; }
+        .btn-group { display: flex; gap: 5px; }
+        button { flex: 1; padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; transition: 0.2s; }
+        button:active { background: #f0f0f0; }
         button.primary { background: var(--accent); color: #fff; border: none; }
 
         ol { font-size: 11px; padding-left: 18px; column-count: 2; margin: 0; line-height: 1.6; color: #444; }
@@ -60,11 +60,11 @@
 
 <div id="panel">
     <div class="handle" onclick="document.getElementById('panel').classList.toggle('closed')">
-        <svg width="12" height="12" viewBox="0 0 10 10"><path d="M2 2 L8 5 L2 8 Z" fill="#999"/></svg>
+        <svg width="12" height="12" viewBox="0 0 10 10" style="transition:0.3s"><path d="M2 2 L8 5 L2 8 Z" fill="#999"/></svg>
     </div>
     <div class="content">
         <div class="section">
-            <label>Interface</label>
+            <label>Styles</label>
             <div class="row">Back <input type="color" id="cfgBg" value="#ffffff"></div>
             <div class="row">Ocean <input type="color" id="cfgOcean" value="#f2f2f2"></div>
             <div class="row">Select <input type="color" id="cfgHl" value="#d4af37"></div>
@@ -72,65 +72,59 @@
         </div>
         
         <div class="section">
-            <label>Export</label>
-            <div class="export-box">
-                <select id="exportFormat">
-                    <option value="md">Markdown (.md)</option>
-                    <option value="json">JSON (.json)</option>
-                    <option value="csv">CSV (.csv)</option>
-                </select>
-                <button onclick="handleExport()">Download</button>
+            <label>Clipboard</label>
+            <div class="btn-group">
+                <button onclick="copySelection()">Copy</button>
+                <button onclick="pasteSelection()">Paste</button>
             </div>
-            <button class="primary" onclick="state.selected.clear(); redrawWorld();">Clear Map</button>
+            <button class="primary" onclick="state.selected.clear(); redrawWorld();">Clear All</button>
         </div>
 
         <div class="section" style="width:100%">
-            <label>List (<span id="sel-count">0</span>)</label>
+            <label>Selected (<span id="sel-count">0</span>)</label>
             <ol id="sel-list"></ol>
         </div>
     </div>
 </div>
 
 <script>
-    const state = { 
-        selected: new Set(), 
-        labels: false, 
-        drift: 0.0006, 
-        features: [], 
-        registry: [] 
-    };
-    
-    // Canvas dimensions (high res for accuracy)
+    const state = { selected: new Set(), labels: false, drift: 0.0006, features: [], registry: [] };
     const W = 4096, H = 2048;
+    
+    // Canvases
     const mainCanvas = document.createElement('canvas');
     mainCanvas.width = W; mainCanvas.height = H;
-    const ctx = mainCanvas.getContext('2d');
+    const ctx = mainCanvas.getContext('2d', { alpha: false });
 
     const idCanvas = document.createElement('canvas');
     idCanvas.width = W; idCanvas.height = H;
-    const idCtx = idCanvas.getContext('2d');
+    const idCtx = idCanvas.getContext('2d', { alpha: false });
 
     let dragStart = { x: 0, y: 0 }, isDragging = false;
 
-    // --- THREE.JS SETUP ---
+    // --- THREE.JS ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.minDistance = 6;
+    controls.maxDistance = 25;
     controls.addEventListener('start', () => state.drift = 0);
 
     const globeTex = new THREE.CanvasTexture(mainCanvas);
+    globeTex.minFilter = THREE.LinearFilter;
     const globe = new THREE.Mesh(
         new THREE.SphereGeometry(5, 128, 128),
         new THREE.MeshBasicMaterial({ map: globeTex })
     );
     scene.add(globe);
 
-    // --- LOGIC ---
+    // --- CORE LOGIC ---
     async function init() {
         camera.position.z = 15;
         if (window.innerWidth <= 768) document.getElementById('panel').classList.add('closed');
@@ -138,18 +132,17 @@
         const data = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r=>r.json());
         state.features = topojson.feature(data, data.objects.countries).features;
 
-        // Pre-calculate Centroids for Labels
         state.features.forEach((f, i) => {
             const lbl = document.createElement('div');
             lbl.className = 'label';
             lbl.innerText = f.properties.name;
             document.getElementById('labels').appendChild(lbl);
             
-            // Basic centroid from first ring
-            const poly = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates[0][0] : f.geometry.coordinates[0];
-            let x=0, y=0;
-            poly.forEach(p => { x+=p[0]; y+=p[1]; });
-            state.registry.push({ name: f.properties.name, label: lbl, lon: x/poly.length, lat: y/poly.length });
+            // Smarter centroid for labels (bbox center)
+            const coords = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates[0][0] : f.geometry.coordinates[0];
+            let minX=180, maxX=-180, minY=90, maxY=-90;
+            coords.forEach(p => { minX=Math.min(minX, p[0]); maxX=Math.max(maxX, p[0]); minY=Math.min(minY, p[1]); maxY=Math.max(maxY, p[1]); });
+            state.registry.push({ name: f.properties.name, label: lbl, lon: (minX+maxX)/2, lat: (minY+maxY)/2 });
         });
 
         drawIDMap();
@@ -157,41 +150,39 @@
         animate();
     }
 
-    // Maps Lon/Lat to Canvas X/Y (Equirectangular)
     function getXY(lon, lat) {
-        const x = (lon + 180) * (W / 360);
-        const y = (90 - lat) * (H / 180);
-        return [x, y];
+        return [(lon + 180) * (W / 360), (90 - lat) * (H / 180)];
     }
 
-    function drawPath(context, feat) {
-        context.beginPath();
-        const coords = feat.geometry.type === "MultiPolygon" ? feat.geometry.coordinates : [feat.geometry.coordinates];
-        coords.forEach(poly => {
-            poly.forEach((ring, index) => {
-                ring.forEach((p, i) => {
-                    const [x, y] = getXY(p[0], p[1]);
-                    if (i === 0) context.moveTo(x, y);
-                    else context.lineTo(x, y);
-                });
-                if (index > 0) context.closePath(); // Handle holes
+    function drawPath(targetCtx, feat) {
+        targetCtx.beginPath();
+        const multi = feat.geometry.type === "MultiPolygon" ? feat.geometry.coordinates : [feat.geometry.coordinates];
+        multi.forEach(poly => {
+            poly.forEach(ring => {
+                for (let i = 0; i < ring.length; i++) {
+                    const [x, y] = getXY(ring[i][0], ring[i][1]);
+                    if (i === 0) targetCtx.moveTo(x, y);
+                    else {
+                        // Anti-Seam Logic: Don't draw lines across the texture if X jumps > 50% of width
+                        const [prevX] = getXY(ring[i-1][0], ring[i-1][1]);
+                        if (Math.abs(x - prevX) < W/2) targetCtx.lineTo(x, y);
+                        else targetCtx.moveTo(x, y);
+                    }
+                }
             });
         });
-        context.fill();
-        context.stroke();
+        targetCtx.fill();
+        targetCtx.stroke();
     }
 
     function drawIDMap() {
         idCtx.fillStyle = '#ffffff';
         idCtx.fillRect(0, 0, W, H);
         state.features.forEach((f, i) => {
-            // Encode index as unique RGB: i+1 to avoid white (0,0,0)
-            const r = (i + 1) & 0xff;
-            const g = ((i + 1) >> 8) & 0xff;
-            const b = ((i + 1) >> 16) & 0xff;
-            idCtx.fillStyle = `rgb(${r},${g},${b})`;
-            idCtx.strokeStyle = `rgb(${r},${g},${b})`;
-            idCtx.lineWidth = 0.5;
+            const id = i + 1;
+            idCtx.fillStyle = `rgb(${id & 0xFF}, ${(id >> 8) & 0xFF}, ${(id >> 16) & 0xFF})`;
+            idCtx.strokeStyle = idCtx.fillStyle;
+            idCtx.lineWidth = 1;
             drawPath(idCtx, f);
         });
     }
@@ -206,9 +197,9 @@
 
         state.features.forEach((f) => {
             const isSel = state.selected.has(f.properties.name);
-            ctx.fillStyle = isSel ? hlc : "#e8e8e8";
-            ctx.strokeStyle = "#ccc";
-            ctx.lineWidth = 1.5;
+            ctx.fillStyle = isSel ? hlc : "#e0e0e0";
+            ctx.strokeStyle = "#bbb";
+            ctx.lineWidth = 0.8;
             drawPath(ctx, f);
         });
 
@@ -222,11 +213,13 @@
         globe.rotation.y += state.drift * (camera.position.length() / 20);
         controls.update();
 
+        const camPos = camera.position.clone();
         state.registry.forEach(c => {
             if(!state.labels) { c.label.style.opacity = 0; return; }
             const v = latLngToVec3(c.lat, c.lon, 5.05).applyMatrix4(globe.matrixWorld);
-            const cameraDir = new THREE.Vector3().subVectors(camera.position, v).normalize();
-            if (v.clone().normalize().dot(cameraDir) > 0.2) {
+            const dot = v.clone().normalize().dot(camPos.clone().normalize());
+            
+            if (dot > 0.3) {
                 v.project(camera);
                 c.label.style.opacity = 1;
                 c.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
@@ -234,6 +227,7 @@
             } else { c.label.style.opacity = 0; }
         });
         renderer.render(scene, camera);
+        document.getElementById('zoomRange').value = camera.position.length();
     }
 
     function latLngToVec3(lat, lng, r) {
@@ -242,7 +236,25 @@
         return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     }
 
-    // --- SELECTION ---
+    // --- CLIPBOARD ---
+    function copySelection() {
+        const data = JSON.stringify([...state.selected]);
+        navigator.clipboard.writeText(data);
+        alert("Selection copied to clipboard!");
+    }
+
+    async function pasteSelection() {
+        try {
+            const text = await navigator.clipboard.readText();
+            const list = JSON.parse(text);
+            if (Array.isArray(list)) {
+                state.selected = new Set(list);
+                redrawWorld();
+            }
+        } catch (e) { alert("Invalid clipboard data."); }
+    }
+
+    // --- INPUTS ---
     window.addEventListener('pointerdown', e => { dragStart = {x:e.clientX, y:e.clientY}; isDragging = false; });
     window.addEventListener('pointermove', e => { if(Math.hypot(e.clientX-dragStart.x, e.clientY-dragStart.y) > 8) isDragging = true; });
     window.addEventListener('pointerup', e => {
@@ -255,13 +267,10 @@
         const hits = ray.intersectObject(globe);
         if (hits.length > 0 && hits[0].uv) {
             const uv = hits[0].uv;
-            // Sample the hidden ID map at the UV coordinate
             const x = Math.floor(uv.x * W);
             const y = Math.floor((1 - uv.y) * H);
-            const pixel = idCtx.getImageData(x, y, 1, 1).data;
-            
-            // Decode ID from RGB
-            const id = pixel[0] + (pixel[1] << 8) + (pixel[2] << 16) - 1;
+            const p = idCtx.getImageData(x, y, 1, 1).data;
+            const id = p[0] + (p[1] << 8) + (p[2] << 16) - 1;
 
             if (id >= 0 && id < state.features.length) {
                 const name = state.features[id].properties.name;
@@ -271,16 +280,10 @@
         }
     });
 
-    function handleExport() {
-        const type = document.getElementById('exportFormat').value;
-        const list = [...state.selected].sort();
-        let content = type === 'md' ? "### Selected Countries\n\n" + list.map(n => `- [x] ${n}`).join("\n") : 
-                      type === 'json' ? JSON.stringify(list, null, 2) : "Country\n" + list.join("\n");
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([content])); a.download = `world-map.${type}`; a.click();
+    function zoomStep(f) { 
+        const newLen = THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25);
+        camera.position.setLength(newLen);
     }
-
-    function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
     document.getElementById('zoomRange').oninput = (e) => camera.position.setLength(e.target.value);
     document.getElementById('cfgLabels').onchange = (e) => state.labels = e.target.checked;
     document.querySelectorAll('input[type="color"]').forEach(i => i.oninput = redrawWorld);
