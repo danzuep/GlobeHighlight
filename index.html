@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V20</title>
+    <title>Global Mapper Pro V21</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
@@ -11,15 +11,12 @@
         :root { --accent: #111; --bg: #ffffff; --ui: rgba(255, 255, 255, 0.98); }
         body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: #fff; color: var(--accent); }
         
-        /* Floating Labels */
         #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
         .label { position: absolute; font-size: 10px; font-weight: 800; color: #222; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; text-shadow: 0 0 4px #fff; transition: opacity 0.2s; }
 
-        /* Fixed Vertical Zoom Tray */
         .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #ddd; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
         #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
 
-        /* Unified Control Panel */
         #panel { position: fixed; background: var(--ui); box-shadow: 0 0 40px rgba(0,0,0,0.12); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 200; border: 1px solid #eee; }
         
         @media (min-width: 769px) {
@@ -72,25 +69,25 @@
             <label>Interface</label>
             <div class="row">Back <input type="color" id="cfgBg" value="#ffffff"></div>
             <div class="row">Ocean <input type="color" id="cfgOcean" value="#f2f2f2"></div>
-            <div class="row">Highlight <input type="color" id="cfgHl" value="#d4af37"></div>
-            <div class="row">Labels <input type="checkbox" id="cfgLabels" checked></div>
+            <div class="row">Select <input type="color" id="cfgHl" value="#d4af37"></div>
+            <div class="row">Labels <input type="checkbox" id="cfgLabels"></div>
         </div>
         
         <div class="section">
-            <label>Export</label>
+            <label>Export Selection</label>
             <div class="export-box">
                 <select id="exportFormat">
                     <option value="md">Markdown (.md)</option>
                     <option value="json">JSON (.json)</option>
                     <option value="csv">CSV (.csv)</option>
                 </select>
-                <button onclick="handleExport()">Download</button>
+                <button onclick="handleExport()">Get File</button>
             </div>
-            <button class="primary" onclick="state.selected.clear(); updateVisuals();">Clear Selection</button>
+            <button class="primary" onclick="state.selected.clear(); updateVisuals();">Reset All</button>
         </div>
 
         <div class="section" style="width:100%">
-            <label>Selection (<span id="sel-count">0</span>)</label>
+            <label>Selected (<span id="sel-count">0</span>)</label>
             <ol id="sel-list"></ol>
         </div>
     </div>
@@ -99,14 +96,14 @@
 <script>
     const state = { 
         selected: new Set(), 
-        labels: true, 
+        labels: false, 
         drift: 0.0006, 
         registry: [], 
         features: [] 
     };
     let dragStart = { x: 0, y: 0 }, isDragging = false;
 
-    // --- SCENE SETUP ---
+    // --- THREE.JS SCENE ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -116,19 +113,19 @@
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.addEventListener('start', () => state.drift = 0); // Stop drift on interaction
+    controls.addEventListener('start', () => state.drift = 0);
 
     const globe = new THREE.Group();
     scene.add(globe);
 
-    // Ocean Base
+    // Ocean Base (The Hit-Target)
     const ocean = new THREE.Mesh(
         new THREE.SphereGeometry(5, 64, 64),
         new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })
     );
     globe.add(ocean);
 
-    // --- GEOMETRY ENGINE ---
+    // --- DATA HANDLING ---
     async function init() {
         camera.position.z = 15;
         if (window.innerWidth <= 768) document.getElementById('panel').classList.add('closed');
@@ -144,17 +141,14 @@
                 const ring = poly[0];
                 if (!ring || ring.length < 3) return;
 
-                // Subdivided Curvature Geometry
                 const geometry = new THREE.BufferGeometry();
                 const vertices = [];
-                const centroid = getCentroid(ring);
-                const cV3 = latLngToVec3(centroid[1], centroid[0], 5.01);
+                const centroidArr = getCentroid(ring);
+                const cV3 = latLngToVec3(centroidArr[1], centroidArr[0], 5.01);
 
                 for (let i = 0; i < ring.length; i++) {
                     const p1 = latLngToVec3(ring[i][1], ring[i][0], 5.01);
                     const p2 = latLngToVec3(ring[(i + 1) % ring.length][1], ring[(i + 1) % ring.length][0], 5.01);
-                    
-                    // Add middle interpolation point to "hug" the sphere curve
                     const mid = new THREE.Vector3().addVectors(p1, p2).divideScalar(2).setLength(5.01);
                     
                     vertices.push(cV3.x, cV3.y, cV3.z, p1.x, p1.y, p1.z, mid.x, mid.y, mid.z);
@@ -162,23 +156,14 @@
                 }
 
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-                geometry.computeVertexNormals();
-
-                const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ 
-                    color: 0xf2f2f2, 
-                    side: THREE.DoubleSide,
-                    polygonOffset: true,
-                    polygonOffsetFactor: -1
-                }));
+                const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0xf2f2f2, side: THREE.DoubleSide }));
                 countryGroup.add(mesh);
 
-                // Outline
-                const linePts = ring.map(pt => latLngToVec3(pt[1], pt[0], 5.015));
+                const linePts = ring.map(pt => latLngToVec3(pt[1], pt[0], 5.012));
                 countryGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(linePts), new THREE.LineBasicMaterial({ color: 0xcccccc })));
             });
 
-            const c = getCentroid(coords[0][0]);
-            countryGroup.userData = { name: feat.properties.name, id: idx };
+            countryGroup.userData = { name: feat.properties.name };
             globe.add(countryGroup);
 
             const lbl = document.createElement('div');
@@ -186,6 +171,7 @@
             lbl.innerText = feat.properties.name;
             document.getElementById('labels').appendChild(lbl);
 
+            const c = getCentroid(coords[0][0]);
             state.registry.push({ group: countryGroup, name: feat.properties.name, label: lbl, centroid: {lat: c[1], lng: c[0]} });
         });
         
@@ -205,22 +191,21 @@
         return [x/pts.length, y/pts.length];
     }
 
-    // --- ANIMATION LOOP ---
+    // --- RENDERING LOOP ---
     function animate() {
         requestAnimationFrame(animate);
-        
-        // Scale rotation by zoom level (closer = slower)
-        const zoomRatio = THREE.MathUtils.clamp(camera.position.length() / 15, 0.2, 1.5);
-        globe.rotation.y += state.drift * zoomRatio;
-        
+        const zoomScale = THREE.MathUtils.clamp(camera.position.length() / 15, 0.1, 1.5);
+        globe.rotation.y += state.drift * zoomScale;
         controls.update();
 
         state.registry.forEach(c => {
             if(!state.labels) { c.label.style.opacity = 0; return; }
             const v = latLngToVec3(c.centroid.lat, c.centroid.lng, 5.05).applyMatrix4(globe.matrixWorld);
-            const cameraDir = new THREE.Vector3().subVectors(camera.position, v).normalize();
+            const camDist = v.distanceTo(camera.position);
+            const globeDist = ocean.position.applyMatrix4(globe.matrixWorld).distanceTo(camera.position);
             
-            if (v.clone().normalize().dot(cameraDir) > 0.2) {
+            // Labels only show if they are on the front side
+            if (camDist < globeDist) {
                 v.project(camera);
                 c.label.style.opacity = 1;
                 c.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
@@ -234,7 +219,7 @@
         document.getElementById('zoomRange').value = camera.position.length();
     }
 
-    // --- INTERACTION & SELECTION ---
+    // --- SELECTION ENGINE ---
     window.addEventListener('pointerdown', e => { dragStart = {x:e.clientX, y:e.clientY}; isDragging = false; });
     window.addEventListener('pointermove', e => { if(Math.hypot(e.clientX-dragStart.x, e.clientY-dragStart.y) > 8) isDragging = true; });
     window.addEventListener('pointerup', e => {
@@ -243,23 +228,32 @@
         const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
         const ray = new THREE.Raycaster();
         ray.setFromCamera(mouse, camera);
+        
+        // INTERSECT CHECK: Front-side only
         const hits = ray.intersectObject(ocean);
-
         if (hits.length > 0) {
-            const pt = hits[0].point.clone().applyMatrix4(globe.matrixWorld.invert());
-            const lat = 90 - (Math.acos(pt.y / 5) * 180 / Math.PI);
-            const lng = ((Math.atan2(pt.z, -pt.x) * 180 / Math.PI) + 180) % 360 - 180;
+            const hit = hits[0];
+            // Ensure the hit point is actually facing the camera (Hemisphere Check)
+            const worldPoint = hit.point.clone();
+            const cameraDir = new THREE.Vector3().subVectors(camera.position, worldPoint).normalize();
+            const surfaceNormal = worldPoint.clone().normalize();
+            
+            if (surfaceNormal.dot(cameraDir) > 0) {
+                const pt = worldPoint.applyMatrix4(globe.matrixWorld.invert());
+                const lat = 90 - (Math.acos(pt.y / 5) * 180 / Math.PI);
+                const lng = ((Math.atan2(pt.z, -pt.x) * 180 / Math.PI) + 180) % 360 - 180;
 
-            const found = state.features.find(f => isPointInPoly([lng, lat], f));
-            if (found) {
-                const n = found.properties.name;
-                state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
-                updateVisuals();
+                const found = state.features.find(f => isPointInCountry([lng, lat], f));
+                if (found) {
+                    const name = found.properties.name;
+                    state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
+                    updateVisuals();
+                }
             }
         }
     });
 
-    function isPointInPoly(pt, feat) {
+    function isPointInCountry(pt, feat) {
         const coords = feat.geometry.type === "MultiPolygon" ? feat.geometry.coordinates : [feat.geometry.coordinates];
         return coords.some(poly => {
             const ring = poly[0];
@@ -273,13 +267,17 @@
 
     function updateVisuals() {
         const hlc = document.getElementById('cfgHl').value;
-        const gbc = document.getElementById('cfgOcean').value;
+        const ocn = document.getElementById('cfgOcean').value;
         renderer.setClearColor(document.getElementById('cfgBg').value);
-        ocean.material.color.set(gbc);
+        ocean.material.color.set(ocn);
 
         state.registry.forEach(c => {
             const isSel = state.selected.has(c.name);
-            c.group.children.forEach(m => { if(m instanceof THREE.Mesh) m.material.color.set(isSel ? hlc : gbc); });
+            c.group.children.forEach(m => { 
+                if(m instanceof THREE.Mesh) m.material.color.set(isSel ? hlc : ocn); 
+            });
+            // PHYSICAL OFFSET: Move selected countries 0.02 units further out to kill Z-Fighting
+            c.group.scale.setScalar(isSel ? 1.004 : 1.0);
         });
 
         document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
@@ -289,13 +287,11 @@
     function handleExport() {
         const type = document.getElementById('exportFormat').value;
         const list = [...state.selected].sort();
-        let content = type === 'md' ? "### Map Selection\n\n" + list.map(n => `- [x] ${n}`).join("\n") : 
+        let content = type === 'md' ? "## Selection\n" + list.map(n => `- [x] ${n}`).join("\n") : 
                       type === 'json' ? JSON.stringify(list, null, 2) : "Country\n" + list.join("\n");
-        
         const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = `globe-export.${type}`; a.click();
+        a.href = URL.createObjectURL(blob); a.download = `map-selection.${type}`; a.click();
     }
 
     function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
