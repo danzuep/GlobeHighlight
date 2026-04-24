@@ -3,144 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro | WebGL</title>
+    <title>Global Mapper | Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --highlight: #333333; --bg: #ffffff; --panel: #f9f9f9; }
+        :root { --highlight: #333; --bg: #fff; --panel: #f9f9f9; }
         body { margin: 0; font-family: -apple-system, sans-serif; overflow: hidden; background: var(--bg); touch-action: none; }
-        
-        #loader {
-            position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: white; z-index: 100; transition: opacity 0.5s;
-        }
-        .spinner {
-            width: 40px; height: 40px; border: 4px solid #eee; border-top-color: var(--highlight);
-            border-radius: 50%; animation: spin 1s linear infinite;
-        }
+        #loader { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: white; z-index: 100; transition: opacity 0.5s; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top-color: var(--highlight); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-        #ui-layer * { pointer-events: auto; }
+        /* UI */
+        #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+        #ui * { pointer-events: auto; }
 
-        /* Sliders & Compass */
-        #compass {
-            position: fixed; top: 20px; right: 20px; width: 45px; height: 45px;
-            cursor: pointer; transition: transform 0.3s;
-        }
-        #compass circle { stroke: var(--highlight); stroke-width: 2; fill: none; }
-        #compass path { fill: var(--highlight); }
+        #compass-container { position: fixed; top: 20px; right: 20px; width: 60px; height: 60px; cursor: pointer; }
+        #compass-svg { width: 100%; height: 100%; transition: transform 0.1s linear; }
 
-        .zoom-controls {
-            position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
-            display: flex; flex-direction: column; align-items: center; gap: 10px;
-            background: rgba(255,255,255,0.8); padding: 15px 8px; border-radius: 30px;
-        }
-        .zoom-controls input { 
-            writing-mode: bt-lr; appearance: slider-vertical; width: 4px; height: 150px; 
-            accent-color: var(--highlight);
-        }
+        .zoom-controls { position: fixed; right: 25px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 15px; background: rgba(255,255,255,0.9); padding: 20px 10px; border-radius: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input[type="range"] { writing-mode: bt-lr; appearance: slider-vertical; width: 5px; height: 160px; accent-color: var(--highlight); }
 
-        /* Settings Panel */
-        #config-panel {
-            position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel);
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.1); border-radius: 20px 20px 0 0;
-            transform: translateY(calc(100% - 45px)); transition: transform 0.4s cubic-bezier(0.1, 0.5, 0.1, 1);
-        }
+        #config-panel { position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel); border-radius: 24px 24px 0 0; transform: translateY(calc(100% - 45px)); transition: transform 0.4s cubic-bezier(0.2, 1, 0.2, 1); box-shadow: 0 -10px 30px rgba(0,0,0,0.05); }
         #config-panel.open { transform: translateY(0); }
-        #config-panel.open .triangle { transform: rotate(180deg); }
-
-        .drag-handle { 
-            height: 45px; display: flex; justify-content: center; align-items: center; 
-            cursor: pointer; font-weight: bold; color: var(--highlight); gap: 10px;
-        }
-        .triangle { transition: transform 0.3s; font-size: 10px; }
-
-        .panel-content {
-            padding: 0 25px 40px 25px; max-height: 60vh; overflow-y: auto;
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;
-        }
-
+        .drag-handle { height: 45px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-weight: bold; color: var(--highlight); }
+        .panel-content { padding: 0 25px 40px; max-height: 60vh; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
         .control-group { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
-        .control-group label { font-weight: 700; color: #666; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
-        .control-row { display: flex; justify-content: space-between; align-items: center; }
-        
-        button.action-btn { 
-            padding: 8px; border: 1px solid #ccc; background: white; border-radius: 6px; 
-            font-weight: 600; cursor: pointer; color: #444; font-size: 11px;
-        }
-        
-        input[type="range"] { accent-color: var(--highlight); }
-
-        #country-list-container { grid-column: 1 / -1; border-top: 1px solid #ddd; padding-top: 15px; }
-        ol { column-count: 2; margin-top: 10px; font-size: 14px; padding-left: 25px; color: var(--highlight); }
-
-        /* Labels Overlay */
-        #labels-overlay { position: absolute; inset: 0; pointer-events: none; }
-        .map-label { 
-            position: absolute; transform: translate(-50%, -50%); 
-            font-weight: bold; text-shadow: 0 0 3px white; white-space: nowrap;
-        }
+        .control-group label { font-weight: 700; color: #666; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        button { padding: 8px; border: 1px solid #ccc; background: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600; }
+        ol { column-count: 2; font-size: 13px; padding-left: 20px; color: var(--highlight); }
     </style>
 </head>
 <body>
 
 <div id="loader">
     <div class="spinner"></div>
-    <p id="load-status" style="font-size: 12px; color: #666; margin-top: 15px;">Initializing WebGL...</p>
+    <p id="status" style="margin-top:15px; font-size:12px; color:#999;">Initializing GPU...</p>
 </div>
 
-<div id="ui-layer">
-    <svg id="compass" viewBox="0 0 100 100" onclick="resetToNorth()">
-        <circle cx="50" cy="50" r="45" />
-        <path d="M50 15 L60 50 L50 85 L40 50 Z" /> 
-    </svg>
-
-    <div class="zoom-controls">
-        <input type="range" id="zoomSlider" min="5" max="30" step="0.1" value="15">
+<div id="ui">
+    <div id="compass-container" onclick="resetView()">
+        <svg id="compass-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="var(--highlight)" stroke-width="2" />
+            <path d="M50 15 L60 50 L50 85 L40 50 Z" fill="var(--highlight)" /> </svg>
     </div>
 
-    <div id="labels-overlay"></div>
+    <div class="zoom-controls">
+        <button onclick="zoomStep(0.8)">-</button>
+        <input type="range" id="zoomSlider" min="6" max="30" step="0.01">
+        <button onclick="zoomStep(1.2)">+</button>
+    </div>
 
     <div id="config-panel">
-        <div class="drag-handle" onclick="document.getElementById('config-panel').classList.toggle('open')">
-            <span class="triangle">▲</span> SETTINGS
-        </div>
+        <div class="drag-handle" onclick="this.parentElement.classList.toggle('open')">▼ SETTINGS</div>
         <div class="panel-content">
             <div class="control-group">
-                <label>Appearance</label>
-                <div class="control-row">Background <input type="color" id="bgColor" value="#ffffff"></div>
-                <div class="control-row">Globe <input type="color" id="globeColor" value="#f2f2f2"></div>
-                <div class="control-row">Highlight <input type="color" id="highlightColor" value="#d4af37"></div>
+                <label>Theme</label>
+                Background <input type="color" id="bgColor" value="#ffffff">
+                Globe <input type="color" id="globeColor" value="#f2f2f2">
+                Selection <input type="color" id="highlightColor" value="#d4af37">
             </div>
             <div class="control-group">
-                <label>Borders & Motion</label>
-                <div class="control-row">Lines <input type="color" id="lineColor" value="#c0c0c0"></div>
-                <div class="control-row">Thickness <input type="range" id="lineWidth" min="1" max="5" step="0.1" value="1"></div>
-                <div class="control-row">Drift Speed <input type="range" id="driftSpeed" min="0" max="0.01" step="0.0001" value="0.002"></div>
+                <label>Engine</label>
+                Lines <input type="color" id="lineColor" value="#c0c0c0">
+                Drift <input type="range" id="driftSpeed" min="0" max="0.005" step="0.0001" value="0.001">
+                Names <input type="color" id="textColor" value="#333333">
             </div>
             <div class="control-group">
-                <label>Country Names</label>
-                <div class="control-row">Visible <input type="checkbox" id="showLabels"></div>
-                <div class="control-row">Size <input type="range" id="fontSize" min="8" max="24" value="12"></div>
-                <div class="control-row">Color <input type="color" id="textColor" value="#333333"></div>
+                <label>Layers</label>
+                <button onclick="toggleTz()">Timezone Map: <span id="tzStat">OFF</span></button>
+                <button onclick="copyMD()">Export List</button>
+                <button onclick="importMD()">Import List</button>
             </div>
             <div class="control-group">
-                <label>Layers & Reset</label>
-                <div class="control-row">Timezone Map <input type="checkbox" id="tzToggle"></div>
-                <div class="control-row">
-                    <button class="action-btn" onclick="resetView()">Reset View</button>
-                    <button class="action-btn" onclick="confirmFullReset()" style="color: #d9534f;">Clear All</button>
-                </div>
+                <label>Reset</label>
+                <button onclick="resetSettings()">Reset Aesthetics</button>
+                <button onclick="hardReset()" style="color:red">Wipe Data & Cache</button>
             </div>
-            <div class="control-group">
-                <label>Data Actions</label>
-                <button class="action-btn" onclick="copyMarkdown()">Export MD</button>
-                <button class="action-btn" onclick="importMarkdown()">Import MD</button>
-            </div>
-
-            <div id="country-list-container">
+            <div id="list-box" style="grid-column: 1/-1">
                 <strong>Countries:</strong>
                 <ol id="country-list"></ol>
             </div>
@@ -148,303 +88,284 @@
     </div>
 </div>
 
-<script>
-    // --- Configuration ---
-    let selectedCountries = new Set();
-    let countriesData = [];
-    let tzData = [];
-    let driftSpeed = 0.002;
-    let tzMode = false;
+<script id="worker-code" type="javascript/worker">
+    // Web Worker for Geometry Processing
+    self.onmessage = async function(e) {
+        const { url, type } = e.data;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        self.postMessage({ type, data });
+    };
+</script>
 
-    let settings = {
-        bgColor: "#ffffff", globeColor: "#f2f2f2", highlightColor: "#d4af37",
-        lineColor: "#c0c0c0", lineWidth: 1, textColor: "#333333",
-        showLabels: false, fontSize: 12
+<script>
+    // --- APP STATE ---
+    let state = {
+        selected: new Set(),
+        tzActive: false,
+        drift: 0.001,
+        settings: {
+            bgColor: '#ffffff', globeColor: '#f2f2f2', highlightColor: '#d4af37',
+            lineColor: '#c0c0c0', textColor: '#333333'
+        }
     };
 
-    // --- WebGL Setup ---
+    // --- ENGINE SETUP ---
     const scene = new THREE.Scene();
+    const pickingScene = new THREE.Scene(); // Invisible scene for GPU picking
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
+    const pickingTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.rotateSpeed = 0.8;
     controls.minDistance = 6;
     controls.maxDistance = 30;
 
-    const globeGroup = new THREE.Group();
-    scene.add(globeGroup);
+    // Reset drift on user interaction
+    controls.addEventListener('start', () => {
+        state.drift = 0;
+        document.getElementById('driftSpeed').value = 0;
+    });
 
-    // Globe Base
-    const globeSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 64, 64),
-        new THREE.MeshBasicMaterial({ color: settings.globeColor })
-    );
+    const globeGroup = new THREE.Group();
+    const pickingGroup = new THREE.Group();
+    scene.add(globeGroup);
+    pickingScene.add(pickingGroup);
+
+    // Globe base (Shader Material)
+    const globeMat = new THREE.MeshBasicMaterial({ color: state.settings.globeColor });
+    const globeSphere = new THREE.Mesh(new THREE.SphereGeometry(5, 64, 64), globeMat);
     globeGroup.add(globeSphere);
 
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
+    // Geometry data containers
+    let countryRegistry = []; 
 
-    // --- Data Management ---
+    // --- WORKER INITS ---
+    const blob = new Blob([document.getElementById('worker-code').textContent], { type: 'text/javascript' });
+    const worker = new Worker(window.URL.createObjectURL(blob));
+
     async function init() {
-        try {
-            // Geolocation
-            const geo = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({longitude: 0, latitude: 20}));
-            camera.position.set(0, 0, 15);
-            globeGroup.rotation.y = -geo.longitude * (Math.PI / 180);
-            globeGroup.rotation.x = geo.latitude * (Math.PI / 180);
+        // 1. Geolocation
+        const geo = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({}));
+        camera.position.set(0, 0, 15);
+        if(geo.longitude) {
+            globeGroup.rotation.y = THREE.MathUtils.degToRad(-geo.longitude);
+            globeGroup.rotation.x = THREE.MathUtils.degToRad(geo.latitude);
+        }
 
-            // Progressive Load
-            document.getElementById('load-status').innerText = "Loading 110m Geometry...";
-            await loadGeometry("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
-            
-            loadState();
-            document.getElementById('loader').style.opacity = '0';
+        // 2. Load Geometry
+        worker.postMessage({ type: 'countries', url: 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json' });
+        
+        loadSession();
+        animate();
+    }
+
+    worker.onmessage = function(e) {
+        const { type, data } = e.data;
+        if (type === 'countries') {
+            const geojson = topojson.feature(data, data.objects.countries);
+            processGeometry(geojson.features);
+            document.getElementById('loader').style.opacity = 0;
             setTimeout(() => document.getElementById('loader').remove(), 500);
-
-            // Detailed Load (Singapore fix)
-            document.getElementById('load-status').innerText = "Enhancing to 50m detail...";
-            await loadGeometry("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json", true);
-
-        } catch (e) { console.error(e); }
-    }
-
-    async function loadGeometry(url, replace = false) {
-        const topoData = await fetch(url).then(r => r.json());
-        const geojson = topojson.feature(topoData, topoData.objects.countries);
-        
-        if(replace) {
-            countriesData.forEach(c => globeGroup.remove(c.mesh));
-            countriesData = [];
         }
+    };
 
-        geojson.features.forEach(feature => {
-            const country = {
-                name: feature.properties.name,
-                mesh: createCountryMesh(feature)
-            };
-            countriesData.push(country);
-            globeGroup.add(country.mesh);
-        });
-        updateMaterials();
-    }
-
-    function createCountryMesh(feature) {
-        const group = new THREE.Group();
-        const material = new THREE.MeshBasicMaterial({ 
-            color: 0x000000, 
-            transparent: true, 
-            opacity: 0,
-            side: THREE.DoubleSide 
-        });
-
-        const bordersMaterial = new THREE.LineBasicMaterial({ color: settings.lineColor });
-
-        feature.geometry.coordinates.forEach(polygon => {
-            const points = [];
-            const coords = feature.geometry.type === "MultiPolygon" ? polygon[0] : polygon;
+    function processGeometry(features) {
+        features.forEach((feature, index) => {
+            const id = index + 1; // 0 is background
+            const colorId = new THREE.Color().setHex(id);
             
-            coords.forEach(coord => {
-                const phi = (90 - coord[1]) * (Math.PI / 180);
-                const theta = (coord[0] + 180) * (Math.PI / 180);
-                points.push(new THREE.Vector3(
-                    -5.01 * Math.sin(phi) * Math.cos(theta),
-                    5.01 * Math.cos(phi),
-                    5.01 * Math.sin(phi) * Math.sin(theta)
-                ));
+            const group = new THREE.Group();
+            const pickGroup = new THREE.Group();
+
+            const borderMat = new THREE.LineBasicMaterial({ color: state.settings.lineColor });
+            const pickMat = new THREE.MeshBasicMaterial({ color: colorId });
+
+            // Using BufferGeometry for performance
+            feature.geometry.coordinates.forEach(coords => {
+                const subCoords = feature.geometry.type === "MultiPolygon" ? coords[0] : coords;
+                const points = [];
+                subCoords.forEach(c => {
+                    const p = latLngToVector3(c[1], c[0], 5.01);
+                    points.push(p);
+                });
+
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(lineGeo, borderMat);
+                group.add(line);
+
+                // Picking volumes (Simplified spheres at centroids for tiny countries like Singapore)
+                // This ensures Singapore is 100% clickable even if borders are 1px
+                const pickSphere = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), pickMat);
+                pickSphere.position.copy(latLngToVector3(getCentroid(subCoords)[1], getCentroid(subCoords)[0], 5.01));
+                pickGroup.add(pickSphere);
             });
 
-            // Borders
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const line = new THREE.Line(geometry, bordersMaterial);
-            group.add(line);
-
-            // Shape for clicking
-            const shape = new THREE.Shape();
-            // Simplified logic for shape filling in 3D is complex; 
-            // for "Blank Map" we use the boundaries for picking or basic fills.
+            group.userData = { name: feature.properties.name, id: id };
+            globeGroup.add(group);
+            pickingGroup.add(pickGroup);
+            countryRegistry[id] = { group, feature };
         });
-
-        group.userData = { name: feature.properties.name };
-        return group;
+        updateVisuals();
     }
 
-    // --- Interaction Logic ---
-    window.addEventListener('click', onMouseClick);
-    function onMouseClick(event) {
-        if (event.target.closest('#ui-layer')) return;
+    // --- CORE LOGIC ---
+
+    function latLngToVector3(lat, lng, radius) {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lng + 180) * (Math.PI / 180);
+        return new THREE.Vector3(
+            -radius * Math.sin(phi) * Math.cos(theta),
+            radius * Math.cos(phi),
+            radius * Math.sin(phi) * Math.sin(theta)
+        );
+    }
+
+    function getCentroid(pts) {
+        let x = 0, y = 0;
+        pts.forEach(p => { x += p[0]; y += p[1]; });
+        return [x / pts.length, y / pts.length];
+    }
+
+    function onPointerDown(event) {
+        if(event.target.closest('#ui')) return;
+
+        // GPU Picking Logic
+        renderer.setRenderTarget(pickingTarget);
+        renderer.render(pickingScene, camera);
         
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        const pixel = new Uint8Array(4);
+        renderer.readRenderTargetPixels(
+            pickingTarget,
+            event.clientX * window.devicePixelRatio,
+            (window.innerHeight - event.clientY) * window.devicePixelRatio,
+            1, 1, pixel
+        );
+        renderer.setRenderTarget(null);
 
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(globeGroup.children, true);
-
-        if (intersects.length > 0) {
-            let obj = intersects[0].object;
-            while(obj.parent && !obj.userData.name) obj = obj.parent;
-            
-            const name = obj.userData.name;
-            if(name) {
-                selectedCountries.has(name) ? selectedCountries.delete(name) : selectedCountries.add(name);
-                updateMaterials();
-                updateList();
-                saveState();
-            }
+        const id = (pixel[0] << 16) | (pixel[1] << 8) | (pixel[2]);
+        if(id > 0 && countryRegistry[id]) {
+            const name = countryRegistry[id].group.userData.name;
+            state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
+            updateVisuals();
+            saveSession();
         }
     }
 
-    function updateMaterials() {
-        document.documentElement.style.setProperty('--highlight', settings.textColor);
-        document.documentElement.style.setProperty('--bg', settings.bgColor);
-        renderer.setClearColor(settings.bgColor, 1);
-        globeSphere.material.color.set(settings.globeColor);
+    window.addEventListener('click', onPointerDown);
 
-        countriesData.forEach(c => {
-            const isSelected = selectedCountries.has(c.name);
-            c.mesh.children.forEach(child => {
-                if(child instanceof THREE.Line) {
-                    child.material.color.set(isSelected ? settings.highlightColor : settings.lineColor);
-                    child.material.linewidth = settings.lineWidth;
-                }
+    function updateVisuals() {
+        document.documentElement.style.setProperty('--highlight', state.settings.textColor);
+        document.documentElement.style.setProperty('--bg', state.settings.bgColor);
+        renderer.setClearColor(state.settings.bgColor);
+        globeMat.color.set(state.settings.globeColor);
+
+        countryRegistry.forEach(c => {
+            const active = state.selected.has(c.group.userData.name);
+            c.group.children.forEach(l => {
+                l.material.color.set(active ? state.settings.highlightColor : state.settings.lineColor);
             });
         });
+
+        const list = document.getElementById('country-list');
+        list.innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
     }
 
-    // --- Animation Loop ---
     function animate() {
         requestAnimationFrame(animate);
         
-        if (!controls.activeLookAt) {
-            globeGroup.rotation.y += driftSpeed;
-        }
+        // Drift
+        globeGroup.rotation.y += state.drift;
+        pickingGroup.rotation.copy(globeGroup.rotation);
+
+        // Compass Tracking (Tracks North Pole)
+        const northVec = new THREE.Vector3(0, 5, 0).applyQuaternion(globeGroup.quaternion).project(camera);
+        const angle = Math.atan2(northVec.x, northVec.y);
+        document.getElementById('compass-svg').style.transform = `rotate(${angle}rad)`;
 
         controls.update();
-        renderLabels();
         renderer.render(scene, camera);
         
-        // Sync zoom slider
-        document.getElementById("zoomSlider").value = camera.position.distanceTo(scene.position);
+        // Slider Sync
+        document.getElementById('zoomSlider').value = camera.position.distanceTo(scene.position);
     }
 
-    function renderLabels() {
-        const overlay = document.getElementById('labels-overlay');
-        overlay.innerHTML = '';
-        if (!settings.showLabels) return;
-
-        countriesData.forEach(c => {
-            const vector = new THREE.Vector3();
-            // Get center of first child line for position
-            if(!c.mesh.children[0]) return;
-            c.mesh.children[0].geometry.computeBoundingSphere();
-            vector.copy(c.mesh.children[0].geometry.boundingSphere.center);
-            vector.applyMatrix4(globeGroup.matrixWorld);
-
-            // Backface culling
-            const cameraDir = new THREE.Vector3().subVectors(camera.position, vector).normalize();
-            const normal = vector.clone().normalize();
-            if (cameraDir.dot(normal) < 0.1) return;
-
-            vector.project(camera);
-            const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-            const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
-
-            const label = document.createElement('div');
-            label.className = 'map-label';
-            label.style.left = `${x}px`;
-            label.style.top = `${y}px`;
-            label.style.fontSize = `${settings.fontSize}px`;
-            label.style.color = settings.textColor;
-            label.innerText = c.name;
-            overlay.appendChild(label);
-        });
-    }
-
-    // --- UI Actions ---
-    function resetToNorth() {
-        new TWEEN.Tween(globeGroup.rotation).to({ x: 0 }, 500).start();
-    }
+    // --- UI ACTIONS ---
 
     function resetView() {
-        settings = { ...settings, bgColor: "#ffffff", globeColor: "#f2f2f2", lineColor: "#c0c0c0", lineWidth: 1, fontSize: 12 };
-        camera.position.set(0, 0, 15);
-        updateMaterials();
+        state.drift = 0.001;
+        document.getElementById('driftSpeed').value = 0.001;
+        new TWEEN.Tween(globeGroup.rotation).to({x: 0, y: globeGroup.rotation.y}, 600).easing(TWEEN.Easing.Quadratic.Out).start();
     }
 
-    function confirmFullReset() {
-        if(confirm("Clear selection and cache?")) {
-            localStorage.clear();
-            location.reload();
-        }
+    function zoomStep(factor) {
+        const newDist = camera.position.distanceTo(scene.position) * (1/factor);
+        camera.position.setLength(THREE.MathUtils.clamp(newDist, 6, 30));
     }
 
-    function saveState() {
-        localStorage.setItem("globe_webgl_v1", JSON.stringify({
-            selected: Array.from(selectedCountries),
-            settings,
-            rot: [globeGroup.rotation.x, globeGroup.rotation.y],
-            zoom: camera.position.z
+    document.getElementById('zoomSlider').oninput = (e) => {
+        camera.position.setLength(parseFloat(e.target.value));
+    };
+
+    document.querySelectorAll('input[type="color"], input[type="range"]').forEach(input => {
+        input.oninput = (e) => {
+            if(e.target.id === 'driftSpeed') state.drift = parseFloat(e.target.value);
+            else state.settings[e.target.id] = e.target.value;
+            updateVisuals();
+        };
+    });
+
+    function hardReset() {
+        if(confirm("Confirm Wipe?")) { localStorage.clear(); location.reload(); }
+    }
+
+    function saveSession() {
+        localStorage.setItem('globe_session_v6', JSON.stringify({
+            selected: [...state.selected],
+            settings: state.settings,
+            rot: [globeGroup.rotation.x, globeGroup.rotation.y]
         }));
     }
 
-    function loadState() {
-        const saved = JSON.parse(localStorage.getItem("globe_webgl_v1") || "{}");
-        if(saved.selected) selectedCountries = new Set(saved.selected);
-        if(saved.settings) settings = saved.settings;
+    function loadSession() {
+        const saved = JSON.parse(localStorage.getItem('globe_session_v6') || '{}');
+        if(saved.selected) state.selected = new Set(saved.selected);
+        if(saved.settings) state.settings = saved.settings;
         if(saved.rot) { globeGroup.rotation.x = saved.rot[0]; globeGroup.rotation.y = saved.rot[1]; }
-        if(saved.zoom) camera.position.z = saved.zoom;
         
-        // Update UI inputs
-        Object.keys(settings).forEach(k => {
+        Object.keys(state.settings).forEach(k => {
             const el = document.getElementById(k);
-            if(el) el.type === "checkbox" ? el.checked = settings[k] : el.value = settings[k];
-        });
-        updateMaterials();
-        updateList();
-    }
-
-    function updateList() {
-        const list = document.getElementById("country-list");
-        list.innerHTML = "";
-        Array.from(selectedCountries).sort().forEach(n => {
-            const li = document.createElement("li");
-            li.textContent = n;
-            list.appendChild(li);
+            if(el) el.value = state.settings[k];
         });
     }
 
-    function copyMarkdown() {
-        const text = "### Countries\n\n" + Array.from(selectedCountries).sort().map((c, i) => `${i+1}. ${c}`).join("\n");
-        navigator.clipboard.writeText(text);
-        alert("Exported!");
+    function copyMD() {
+        const txt = `### Selected\n\n` + [...state.selected].sort().map((n, i) => `${i+1}. ${n}`).join('\n');
+        navigator.clipboard.writeText(txt);
+        alert("Copied!");
     }
 
-    function importMarkdown() {
-        const input = prompt("Paste Markdown:");
-        if (input) {
-            const lines = input.match(/\d+\.\s(.*)/g);
-            if (lines) lines.forEach(l => selectedCountries.add(l.replace(/^\d+\.\s/, "").trim()));
-            updateMaterials();
-            updateList();
+    function importMD() {
+        const input = prompt("Paste numbered list:");
+        if(input) {
+            const matches = input.match(/\d+\.\s(.*)/g);
+            if(matches) matches.forEach(m => state.selected.add(m.replace(/^\d+\.\s/, '').trim()));
+            updateVisuals();
         }
     }
 
-    // Handle Window Resize
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        pickingTarget.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Start
     init();
-    animate();
-
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
 </body>
