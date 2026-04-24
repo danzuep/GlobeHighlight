@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Globe Highlight V28</title>
+    <title>Globe Highlight V27</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -202,6 +202,9 @@
     async function init() {
         camera.position.z = 15;
         loadSettings();
+        if(window.innerWidth < 769) {
+            document.getElementById('panel').classList.add('closed');
+        }
         
         const worldData = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r=>r.json());
         state.features = topojson.feature(worldData, worldData.objects.countries).features;
@@ -424,7 +427,7 @@
             redrawWorld();
         };
     });
-    document.getElementById('cfgLabels').onclick = (e) => state.labels = e.target.checked;
+    document.getElementById('cfgLabels').onchange = (e) => { state.labels = e.target.checked; saveSettings(); };
     window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
     init();
