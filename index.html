@@ -3,199 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V14</title>
+    <title>Global Mapper Pro V15</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #333; --bg: #fff; --ui: rgba(255, 255, 255, 0.95); }
+        :root { --accent: #222; --bg: #fff; --ui: rgba(255, 255, 255, 0.95); }
         body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: #fff; }
         
+        /* Labels Overlay */
         #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-        .label { position: absolute; font-size: 8px; font-weight: 700; color: #333; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.2s; white-space: nowrap; text-shadow: 0 0 2px #fff; }
+        .label { position: absolute; font-size: 9px; font-weight: 700; color: #444; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; white-space: nowrap; text-shadow: 0 0 3px #fff; transition: opacity 0.2s; }
 
-        /* Unified Vertical Zoom Bar */
-        .zoom-tray { position: fixed; right: 25px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 15px; background: var(--ui); padding: 20px 10px; border-radius: 40px; border: 1px solid #eee; z-index: 20; }
-        #zoomRange { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
+        /* Unified Vertical Zoom */
+        .zoom-wrap { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 8px; border-radius: 30px; border: 1px solid #ddd; z-index: 20; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        #zoomBar { writing-mode: bt-lr; appearance: slider-vertical; width: 6px; height: 160px; accent-color: var(--accent); cursor: pointer; }
 
-        /* Panel logic */
-        #panel { position: fixed; background: var(--ui); box-shadow: 0 0 40px rgba(0,0,0,0.1); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 20; }
+        /* Smart Settings Panel */
+        #panel { position: fixed; background: var(--ui); box-shadow: 0 0 30px rgba(0,0,0,0.1); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 30; }
+        
         @media (min-width: 769px) {
-            #panel { left: 0; top: 0; width: 340px; height: 100%; transform: translateX(0); }
-            #panel.closed { transform: translateX(-295px); }
-            .handle { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 45px; height: 80px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-            .content { padding: 50px 35px; flex-grow: 1; display: flex; flex-direction: column; gap: 30px; overflow-y: auto; }
+            #panel { left: 0; top: 0; width: 320px; height: 100%; transform: translateX(0); }
+            #panel.closed { transform: translateX(-275px); }
+            .handle { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 45px; height: 100px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+            .handle-tri { transition: transform 0.3s; transform: rotate(-90deg); }
+            #panel.closed .handle-tri { transform: rotate(90deg); }
+            .content { padding: 40px 30px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 25px; }
         }
+
         @media (max-width: 768px) {
-            #panel { bottom: 0; left: 0; right: 0; border-radius: 24px 24px 0 0; transform: translateY(0); }
+            #panel { bottom: 0; left: 0; right: 0; border-radius: 20px 20px 0 0; transform: translateY(0); }
             #panel.closed { transform: translateY(calc(100% - 45px)); }
             .handle { height: 45px; width: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-            .content { padding: 0 25px 30px; max-height: 45vh; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 20px; }
+            .handle-tri { transition: transform 0.3s; transform: rotate(0deg); }
+            #panel.closed .handle-tri { transform: rotate(180deg); }
+            .content { padding: 0 20px 30px; max-height: 45vh; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 15px; }
             .section { flex: 1 1 140px; }
         }
 
-        .section { display: flex; flex-direction: column; gap: 12px; }
-        .section label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #aaa; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+        .section { display: flex; flex-direction: column; gap: 8px; }
+        .section label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #999; border-bottom: 1px solid #eee; padding-bottom: 4px; }
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         input[type="color"] { border: none; width: 22px; height: 22px; cursor: pointer; background: none; }
-        button { padding: 8px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; font-size: 10px; }
-        ol { font-size: 12px; padding-left: 18px; column-count: 2; }
+        ol { font-size: 11px; padding-left: 15px; column-count: 2; line-height: 1.5; }
     </style>
 </head>
 <body>
 
 <div id="labels"></div>
-<div class="zoom-tray">
-    <button onclick="zoomBtn(1.2)">+</button>
-    <input type="range" id="zoomRange" min="6" max="25" step="0.1" value="15">
-    <button onclick="zoomBtn(0.8)">-</button>
+
+<div class="zoom-wrap">
+    <button onclick="zoomStep(1.2)">+</button>
+    <input type="range" id="zoomBar" min="6" max="25" step="0.1" value="15">
+    <button onclick="zoomStep(0.8)">-</button>
 </div>
 
 <div id="panel" class="closed">
     <div class="handle" onclick="document.getElementById('panel').classList.toggle('closed')">
-        <svg width="12" height="12" viewBox="0 0 10 10"><path d="M0 2 L10 2 L5 9 Z" fill="#999"/></svg>
+        <svg class="handle-tri" width="10" height="10" viewBox="0 0 10 10"><path d="M0 0 L10 0 L5 8 Z" fill="#999"/></svg>
     </div>
     <div class="content">
         <div class="section">
             <label>Theme</label>
-            <div class="row">Back <input type="color" id="bgColor" value="#ffffff"></div>
-            <div class="row">Globe <input type="color" id="globeColor" value="#f2f2f2"></div>
-            <div class="row">Highlight <input type="color" id="hlColor" value="#d4af37"></div>
+            <div class="row">Background <input type="color" id="colorBg" value="#ffffff"></div>
+            <div class="row">Globe <input type="color" id="colorGlobe" value="#f2f2f2"></div>
+            <div class="row">Highlight <input type="color" id="colorHl" value="#d4af37"></div>
         </div>
         <div class="section">
-            <label>Dynamics</label>
-            <div class="row">Labels <input type="checkbox" id="showLabels"></div>
-            <div class="row">Drift <input type="range" id="driftInp" min="0" max="0.005" step="0.0001" value="0.001"></div>
+            <label>Overlay</label>
+            <div class="row">Show Names <input type="checkbox" id="checkLabels"></div>
+            <div class="row">Rotation <input type="range" id="driftInp" min="0" max="0.005" step="0.0001" value="0.001" style="width:60px"></div>
         </div>
-        <div class="section">
-            <label>Selection</label>
+        <div class="section" style="width:100%">
+            <label>Selected Countries</label>
             <ol id="sel-list"></ol>
         </div>
     </div>
 </div>
 
 <script>
-    let state = { selected: new Set(), showLabels: false, registry: [], drift: 0.001 };
-    let isDragging = false;
-    let startPos = {x:0, y:0};
+    // --- STATE ---
+    const state = {
+        selected: new Set(),
+        showLabels: false,
+        drift: 0.001,
+        countries: []
+    };
 
+    // --- ENGINE SETUP ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setClearColor(0xffffff, 1);
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    const globe = new THREE.Group();
-    scene.add(globe);
+    controls.enableDamping = true;
 
-    // The Base Globe is back
-    const baseGlobe = new THREE.Mesh(
+    const globeGroup = new THREE.Group();
+    scene.add(globeGroup);
+
+    // Base Sphere
+    const globeBase = new THREE.Mesh(
         new THREE.SphereGeometry(5, 64, 64),
         new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })
     );
-    globe.add(baseGlobe);
+    globeGroup.add(globeBase);
 
     async function init() {
         camera.position.z = 15;
-        // Panel Setup: Open by default on desktop, closed on mobile
-        if(window.innerWidth > 768) document.getElementById('panel').classList.remove('closed');
+        
+        // Initial Panel State
+        if (window.innerWidth > 768) document.getElementById('panel').classList.remove('closed');
 
-        const data = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r=>r.json());
-        const features = topojson.feature(data, data.objects.countries).features;
+        const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
+        const topo = await res.json();
+        const geojson = topojson.feature(topo, topo.objects.countries);
 
-        features.forEach(feat => {
-            const group = new THREE.Group();
-            const mat = new THREE.MeshBasicMaterial({ color: 0xf2f2f2, polygonOffset: true, polygonOffsetFactor: -1 });
+        geojson.features.forEach(feature => {
+            const country = new THREE.Group();
+            const name = feature.properties.name;
+            const color = 0xf2f2f2;
+
+            // Geometry Processing
+            const coords = feature.geometry.type === "MultiPolygon" ? feature.geometry.coordinates : [feature.geometry.coordinates];
             
-            feat.geometry.coordinates.forEach(poly => {
-                const coords = feat.geometry.type === "MultiPolygon" ? poly[0] : poly;
-                const pts = coords.map(c => latLngToVec3(c[1], c[0], 5.01));
-                const geo = new THREE.BufferGeometry().setFromPoints(pts);
-                group.add(new THREE.Mesh(geo, mat.clone()));
+            coords.forEach(polygon => {
+                const ring = polygon[0];
+                if (!ring || ring.length < 3) return;
+
+                // Create a 2D shape for triangulation
+                const shape = new THREE.Shape();
+                shape.moveTo(ring[0][0], ring[0][1]);
+                for (let i = 1; i < ring.length; i++) shape.lineTo(ring[i][0], ring[i][1]);
+
+                // Convert 2D triangulation to 3D Sphere points
+                const geometry = new THREE.ShapeGeometry(shape);
+                const pos = geometry.attributes.position;
+                for (let i = 0; i < pos.count; i++) {
+                    const v = latLngToVec3(pos.getY(i), pos.getX(i), 5.02);
+                    pos.setXYZ(i, v.x, v.y, v.z);
+                }
+
+                const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ 
+                    color: color, 
+                    side: THREE.DoubleSide,
+                    polygonOffset: true,
+                    polygonOffsetFactor: -1
+                }));
+                
+                country.add(mesh);
             });
 
-            group.userData = { name: feat.properties.name, centroid: getCentroid(feat.geometry.coordinates) };
-            globe.add(group);
-            state.registry.push({ group, name: feat.properties.name });
+            country.userData = { name, centroid: getCentroid(coords) };
+            globeGroup.add(country);
             
-            const div = document.createElement('div');
-            div.className = 'label';
-            div.innerText = feat.properties.name;
-            document.getElementById('labels').appendChild(div);
-            group.userData.label = div;
+            // Create Label Element
+            const lbl = document.createElement('div');
+            lbl.className = 'label';
+            lbl.innerText = name;
+            document.getElementById('labels').appendChild(lbl);
+            
+            state.countries.push({ group: country, name, label: lbl, centroid: country.userData.centroid });
         });
+
         animate();
     }
 
-    function getCentroid(coords) {
-        let lat=0, lng=0, count=0;
-        const process = (c) => { lat += c[1]; lng += c[0]; count++; };
-        coords.forEach(p => Array.isArray(p[0]) ? p[0].forEach(process) : process(p));
-        return { lat: lat/count, lng: lng/count };
-    }
-
+    // --- MATH ---
     function latLngToVec3(lat, lng, r) {
         const phi = (90 - lat) * (Math.PI / 180);
         const theta = (lng + 180) * (Math.PI / 180);
-        return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+        return new THREE.Vector3(
+            -r * Math.sin(phi) * Math.cos(theta),
+            r * Math.cos(phi),
+            r * Math.sin(phi) * Math.sin(theta)
+        );
+    }
+
+    function getCentroid(coords) {
+        let lat = 0, lng = 0, count = 0;
+        coords.forEach(poly => poly[0].forEach(pt => { lat += pt[1]; lng += pt[0]; count++; }));
+        return { lat: lat / count, lng: lng / count };
+    }
+
+    // --- INTERACTION ---
+    let dragCheck = false;
+    window.addEventListener('pointerdown', () => dragCheck = false);
+    window.addEventListener('pointermove', () => dragCheck = true);
+    window.addEventListener('pointerup', (e) => {
+        if (dragCheck || e.target.closest('#panel') || e.target.closest('.zoom-wrap')) return;
+
+        const mouse = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+
+        const hits = raycaster.intersectObjects(globeGroup.children, true);
+        if (hits.length > 0) {
+            let target = hits[0].object;
+            while (target.parent && !target.userData.name) target = target.parent;
+            
+            if (target.userData.name) {
+                const n = target.userData.name;
+                state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
+                updateUI();
+            }
+        }
+    });
+
+    function updateUI() {
+        const hl = document.getElementById('colorHl').value;
+        const gl = document.getElementById('colorGlobe').value;
+        const bg = document.getElementById('colorBg').value;
+
+        renderer.setClearColor(bg);
+        globeBase.material.color.set(gl);
+
+        state.countries.forEach(c => {
+            const isSel = state.selected.has(c.name);
+            c.group.children.forEach(m => m.material.color.set(isSel ? hl : gl));
+        });
+
+        document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        globe.rotation.y += state.drift;
-        
-        state.registry.forEach(c => {
-            if(!state.showLabels) { c.group.userData.label.style.opacity = 0; return; }
-            const vec = latLngToVec3(c.group.userData.centroid.lat, c.group.userData.centroid.lng, 5.2);
-            vec.project(camera);
-            const dot = new THREE.Vector3().setFromSphericalCoords(5, (90-c.group.userData.centroid.lat)*Math.PI/180, (c.group.userData.centroid.lng+180)*Math.PI/180).applyQuaternion(globe.quaternion).dot(camera.getWorldDirection(new THREE.Vector3()));
-            c.group.userData.label.style.opacity = dot > 0 ? 1 : 0;
-            c.group.userData.label.style.left = `${(vec.x * 0.5 + 0.5) * window.innerWidth}px`;
-            c.group.userData.label.style.top = `${(-vec.y * 0.5 + 0.5) * window.innerHeight}px`;
+        globeGroup.rotation.y += state.drift;
+        controls.update();
+
+        // Label tracking
+        state.countries.forEach(c => {
+            if (!state.showLabels) { c.label.style.opacity = 0; return; }
+            
+            const v = latLngToVec3(c.centroid.lat, c.centroid.lng, 5.1);
+            v.applyMatrix4(globeGroup.matrixWorld); // Critical: track rotation
+            
+            const camDist = v.distanceTo(camera.position);
+            const globeDist = globeBase.position.distanceTo(camera.position);
+
+            if (camDist < globeDist) { // Only show if on the front side
+                v.project(camera);
+                c.label.style.opacity = 1;
+                c.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
+                c.label.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+            } else {
+                c.label.style.opacity = 0;
+            }
         });
 
         renderer.render(scene, camera);
-        document.getElementById('zoomRange').value = camera.position.length();
+        document.getElementById('zoomBar').value = camera.position.length();
     }
 
-    // Interaction
-    window.addEventListener('pointerdown', (e) => { isDragging = false; startPos = {x:e.clientX, y:e.clientY}; });
-    window.addEventListener('pointermove', (e) => { if(Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y) > 5) isDragging = true; });
-    window.addEventListener('pointerup', (e) => {
-        if(isDragging || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
-        const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-        const hits = raycaster.intersectObjects(globe.children, true);
-        if(hits.length > 0) {
-            const name = hits[0].object.parent.userData.name;
-            if(!name) return;
-            state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
-            updateVisuals();
-        }
-    });
-
-    function updateVisuals() {
-        const hl = document.getElementById('hlColor').value;
-        const globeCol = document.getElementById('globeColor').value;
-        baseGlobe.material.color.set(globeCol);
-        renderer.setClearColor(document.getElementById('bgColor').value, 1);
-        state.registry.forEach(c => {
-            const sel = state.selected.has(c.name);
-            c.group.children.forEach(m => m.material.color.set(sel ? hl : globeCol));
-        });
-        document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
-    }
-
-    // Listeners
-    document.getElementById('showLabels').onchange = (e) => state.showLabels = e.target.checked;
+    // --- UI LISTENERS ---
+    function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
+    document.getElementById('zoomBar').oninput = (e) => camera.position.setLength(e.target.value);
     document.getElementById('driftInp').oninput = (e) => state.drift = parseFloat(e.target.value);
-    document.querySelectorAll('input[type="color"]').forEach(i => i.oninput = updateVisuals);
-    document.getElementById('zoomRange').oninput = (e) => camera.position.setLength(e.target.value);
-    function zoomBtn(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25)); }
-    window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+    document.getElementById('checkLabels').onchange = (e) => state.showLabels = e.target.checked;
+    document.querySelectorAll('input[type="color"]').forEach(i => i.oninput = updateUI);
+    window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
     init();
 </script>
