@@ -3,231 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Mapper Pro V24</title>
+    <title>Globe Highlight V28</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #111; --bg: #ffffff; --ui: rgba(255, 255, 255, 0.98); }
-        body { margin: 0; font-family: -apple-system, system-ui, sans-serif; overflow: hidden; background: #fff; }
+        :root { --accent: #ffd700; --bg: #05070a; --ui: rgba(15, 18, 25, 0.96); --text: #f0f0f0; }
+        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; background: var(--bg); color: var(--text); }
         
         #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-        .label { position: absolute; font-size: 10px; font-weight: 800; color: #222; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; text-shadow: 0 0 4px #fff; }
+        .label { position: absolute; font-size: 11px; font-weight: 700; color: #fff; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; text-shadow: 0 0 6px #000; letter-spacing: 0.5px; }
 
-        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #ddd; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #333; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         #zoomRange { appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
 
-        #panel { position: fixed; background: var(--ui); box-shadow: 0 0 40px rgba(0,0,0,0.12); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 200; border: 1px solid #eee; }
+        #panel { position: fixed; background: var(--ui); box-shadow: 0 0 50px rgba(0,0,0,0.8); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 200; border: 1px solid #222; }
         
+        /* Responsive Handles */
+        .handle { position: absolute; background: var(--ui); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #222; }
+        .handle svg { transition: 0.4s; }
+
         @media (min-width: 769px) {
-            #panel { left: 0; top: 0; width: 340px; height: 100%; transform: translateX(0); }
-            #panel.closed { transform: translateX(-340px); }
-            .handle { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); width: 42px; height: 80px; background: var(--ui); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #eee; border-left: none; border-radius: 0 12px 12px 0; }
+            #panel { left: 0; top: 0; width: 320px; height: 100%; transform: translateX(0); }
+            #panel.closed { transform: translateX(-320px); }
+            .handle { left: 100%; top: 50%; transform: translateY(-50%); width: 40px; height: 70px; border-left: none; border-radius: 0 12px 12px 0; }
             #panel.closed .handle svg { transform: rotate(180deg); }
-            .content { padding: 40px 30px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 25px; }
         }
 
         @media (max-width: 768px) {
             #panel { bottom: 0; left: 0; right: 0; border-radius: 24px 24px 0 0; transform: translateY(0); }
             #panel.closed { transform: translateY(calc(100% - 50px)); }
-            .handle { height: 50px; width: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-            #panel.closed .handle svg { transform: rotate(180deg); }
-            .content { padding: 0 24px 30px; max-height: 50vh; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 18px; }
-            .section { flex: 1 1 140px; }
+            .handle { top: -40px; left: 50%; transform: translateX(-50%); width: 70px; height: 40px; border-bottom: none; border-radius: 12px 12px 0 0; }
+            .handle svg { transform: rotate(90deg); }
+            #panel.closed .handle svg { transform: rotate(-90deg); }
+            .content { padding: 10px 20px 30px; max-height: 45vh; }
         }
 
-        .section { display: flex; flex-direction: column; gap: 10px; }
-        .section label { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #bbb; letter-spacing: 1.5px; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
-        .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; }
+        .content { padding: 35px 25px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .section { display: flex; flex-direction: column; gap: 8px; }
+        .section label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #555; letter-spacing: 2px; border-bottom: 1px solid #222; padding-bottom: 4px; }
+        .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         
-        .btn-group { display: flex; gap: 5px; }
-        button { flex: 1; padding: 10px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; transition: 0.2s; }
-        button:active { background: #f0f0f0; }
-        button.primary { background: var(--accent); color: #fff; border: none; }
+        .btn-group { display: flex; gap: 4px; }
+        select { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0a0c10; color: #fff; font-size: 11px; outline: none; }
+        button { flex: 1; padding: 10px; border: 1px solid #333; background: #151921; color: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; transition: 0.2s; }
+        button:hover { background: #202632; border-color: var(--accent); }
+        button.danger { color: #ff4d4d; border-color: #441111; }
 
-        ol { font-size: 11px; padding-left: 18px; column-count: 2; margin: 0; line-height: 1.6; color: #444; }
-        input[type="color"] { border: none; width: 22px; height: 22px; cursor: pointer; background: none; }
+        ol { font-size: 11px; padding-left: 18px; column-count: 2; margin: 0; color: #888; }
+        input[type="color"] { border: none; width: 28px; height: 28px; cursor: pointer; background: none; }
+
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--ui);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            z-index: 1000;
+            display: none;
+            color: var(--text);
+            max-width: 500px;
+            width: 90%;
+        }
+        .modal h3 { margin: 0 0 15px 0; font-size: 16px; }
+        .modal textarea {
+            width: 100%;
+            height: 200px;
+            background: #0a0c10;
+            border: 1px solid #333;
+            color: #fff;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+        .modal-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
 
 <div id="labels"></div>
 <div class="zoom-tray">
-    <button onclick="zoomStep(1.2)">+</button>
-    <input type="range" id="zoomRange" min="6" max="25" step="0.1" value="15">
-    <button onclick="zoomStep(0.8)">-</button>
+    <button onclick="zoomStep(1.3)">+</button>
+    <input type="range" id="zoomRange" min="5.5" max="25" step="0.1" value="15">
+    <button onclick="zoomStep(0.7)">-</button>
 </div>
 
 <div id="panel">
     <div class="handle" onclick="document.getElementById('panel').classList.toggle('closed')">
-        <svg width="12" height="12" viewBox="0 0 10 10" style="transition:0.3s"><path d="M2 2 L8 5 L2 8 Z" fill="#999"/></svg>
+        <svg width="14" height="14" viewBox="0 0 10 10"><path d="M2 2 L8 5 L2 8 Z" fill="#777"/></svg>
     </div>
     <div class="content">
         <div class="section">
-            <label>Styles</label>
-            <div class="row">Back <input type="color" id="cfgBg" value="#ffffff"></div>
-            <div class="row">Ocean <input type="color" id="cfgOcean" value="#f2f2f2"></div>
-            <div class="row">Select <input type="color" id="cfgHl" value="#d4af37"></div>
+            <label>Atmosphere</label>
+            <div class="row">Space <input type="color" id="cfgBg" value="#05070a"></div>
+            <div class="row">Ocean <input type="color" id="cfgOcean" value="#0d1b2a"></div>
+            <div class="row">Land <input type="color" id="cfgLand" value="#1b263b"></div>
+            <div class="row">Select <input type="color" id="cfgHl" value="#ffd700"></div>
             <div class="row">Labels <input type="checkbox" id="cfgLabels"></div>
         </div>
         
         <div class="section">
-            <label>Clipboard</label>
+            <label>Transfer</label>
+            <select id="ioFormat">
+                <option value="csv">CSV Commas</option>
+                <option value="json">JSON Array</option>
+                <option value="md">MD List</option>
+            </select>
             <div class="btn-group">
-                <button onclick="copySelection()">Copy</button>
-                <button onclick="pasteSelection()">Paste</button>
+                <button onclick="openExport()">Export</button>
+                <button onclick="openImport()">Import</button>
             </div>
-            <button class="primary" onclick="state.selected.clear(); redrawWorld();">Clear All</button>
+            <button class="danger" onclick="hardReset()">Factory Reset Settings</button>
         </div>
 
-        <div class="section" style="width:100%">
+        <div class="section">
             <label>Selected (<span id="sel-count">0</span>)</label>
             <ol id="sel-list"></ol>
         </div>
     </div>
 </div>
 
+<div id="exportModal" class="modal">
+    <h3>Export Data</h3>
+    <textarea id="exportArea" readonly></textarea>
+    <button onclick="closeModal('exportModal')">Close</button>
+</div>
+
+<div id="importModal" class="modal">
+    <h3>Import Data</h3>
+    <textarea id="importArea" placeholder="Paste your markdown or JSON here..."></textarea>
+    <div class="modal-btns">
+        <button onclick="processImport()">Apply</button>
+        <button onclick="closeModal('importModal')">Cancel</button>
+    </div>
+</div>
+
 <script>
-    const state = { selected: new Set(), labels: false, drift: 0.0006, features: [], registry: [] };
-    const W = 4096, H = 2048;
-    
-    // Canvases
+    const W = 8192, H = 4096; // 8K Texture for extreme zoom clarity
+    const state = { 
+        selected: new Set(), 
+        labels: false, 
+        features: [], 
+        registry: [],
+        colors: { bg: '#05070a', ocean: '#0d1b2a', land: '#1b263b', hl: '#ffd700' }
+    };
+
+    // --- SETUP CANVAS & D3 ---
     const mainCanvas = document.createElement('canvas');
     mainCanvas.width = W; mainCanvas.height = H;
-    const ctx = mainCanvas.getContext('2d', { alpha: false });
+    const ctx = mainCanvas.getContext('2d');
+    const projection = d3.geoEquirectangular().translate([W/2, H/2]).scale(W / (2 * Math.PI));
+    const pathGenerator = d3.geoPath(projection, ctx);
 
+    // ID Map for clicking
     const idCanvas = document.createElement('canvas');
     idCanvas.width = W; idCanvas.height = H;
-    const idCtx = idCanvas.getContext('2d', { alpha: false });
-
-    let dragStart = { x: 0, y: 0 }, isDragging = false;
+    const idCtx = idCanvas.getContext('2d');
+    const idPath = d3.geoPath(projection, idCtx);
 
     // --- THREE.JS ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.minDistance = 6;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 5.2;
     controls.maxDistance = 25;
-    controls.addEventListener('start', () => state.drift = 0);
 
     const globeTex = new THREE.CanvasTexture(mainCanvas);
-    globeTex.minFilter = THREE.LinearFilter;
+    globeTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
     const globe = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 128, 128),
+        new THREE.SphereGeometry(5, 160, 160),
         new THREE.MeshBasicMaterial({ map: globeTex })
     );
     scene.add(globe);
 
-    // --- CORE LOGIC ---
+    // Vector Border Layer
+    const borderGroup = new THREE.Group();
+    scene.add(borderGroup);
+
     async function init() {
         camera.position.z = 15;
-        if (window.innerWidth <= 768) document.getElementById('panel').classList.add('closed');
+        loadSettings();
+        
+        const worldData = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r=>r.json());
+        state.features = topojson.feature(worldData, worldData.objects.countries).features;
 
-        const data = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r=>r.json());
-        state.features = topojson.feature(data, data.objects.countries).features;
-
+        // One-time ID Map Draw
+        idCtx.fillStyle = '#ffffff';
+        idCtx.fillRect(0,0,W,H);
         state.features.forEach((f, i) => {
+            const id = i + 1;
+            idCtx.fillStyle = `rgb(${id & 0xFF}, ${(id >> 8) & 0xFF}, ${(id >> 16) & 0xFF})`;
+            idCtx.beginPath(); idPath(f); idCtx.fill();
+
+            // Label Registry
+            const centroid = d3.geoCentroid(f);
             const lbl = document.createElement('div');
             lbl.className = 'label';
             lbl.innerText = f.properties.name;
             document.getElementById('labels').appendChild(lbl);
-            
-            // Smarter centroid for labels (bbox center)
-            const coords = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates[0][0] : f.geometry.coordinates[0];
-            let minX=180, maxX=-180, minY=90, maxY=-90;
-            coords.forEach(p => { minX=Math.min(minX, p[0]); maxX=Math.max(maxX, p[0]); minY=Math.min(minY, p[1]); maxY=Math.max(maxY, p[1]); });
-            state.registry.push({ name: f.properties.name, label: lbl, lon: (minX+maxX)/2, lat: (minY+maxY)/2 });
+            state.registry.push({ name: f.properties.name, label: lbl, lon: centroid[0], lat: centroid[1] });
         });
 
-        drawIDMap();
+        drawBorders();
         redrawWorld();
         animate();
     }
 
-    function getXY(lon, lat) {
-        return [(lon + 180) * (W / 360), (90 - lat) * (H / 180)];
-    }
-
-    function drawPath(targetCtx, feat) {
-        targetCtx.beginPath();
-        const multi = feat.geometry.type === "MultiPolygon" ? feat.geometry.coordinates : [feat.geometry.coordinates];
-        multi.forEach(poly => {
-            poly.forEach(ring => {
-                for (let i = 0; i < ring.length; i++) {
-                    const [x, y] = getXY(ring[i][0], ring[i][1]);
-                    if (i === 0) targetCtx.moveTo(x, y);
-                    else {
-                        // Anti-Seam Logic: Don't draw lines across the texture if X jumps > 50% of width
-                        const [prevX] = getXY(ring[i-1][0], ring[i-1][1]);
-                        if (Math.abs(x - prevX) < W/2) targetCtx.lineTo(x, y);
-                        else targetCtx.moveTo(x, y);
+    function drawBorders() {
+        borderGroup.clear();
+        state.features.forEach(f => {
+            const coords = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
+            coords.forEach(poly => {
+                poly.forEach(ring => {
+                    const pts = [];
+                    for(let i=0; i<ring.length; i++) {
+                        const p = ring[i], next = ring[(i+1)%ring.length];
+                        if (Math.abs(p[0]-next[0]) < 180) { // Antimeridian skip
+                            pts.push(latLngToVec3(p[1], p[0], 5.01));
+                        } else {
+                            renderSegment(pts);
+                            pts.length = 0;
+                        }
                     }
-                }
+                    renderSegment(pts);
+                });
             });
         });
-        targetCtx.fill();
-        targetCtx.stroke();
     }
 
-    function drawIDMap() {
-        idCtx.fillStyle = '#ffffff';
-        idCtx.fillRect(0, 0, W, H);
-        state.features.forEach((f, i) => {
-            const id = i + 1;
-            idCtx.fillStyle = `rgb(${id & 0xFF}, ${(id >> 8) & 0xFF}, ${(id >> 16) & 0xFF})`;
-            idCtx.strokeStyle = idCtx.fillStyle;
-            idCtx.lineWidth = 1;
-            drawPath(idCtx, f);
-        });
+    function renderSegment(pts) {
+        if(pts.length < 2) return;
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.4 }));
+        borderGroup.add(line);
     }
 
     function redrawWorld() {
-        const ocn = document.getElementById('cfgOcean').value;
-        const hlc = document.getElementById('cfgHl').value;
-        renderer.setClearColor(document.getElementById('cfgBg').value);
-
-        ctx.fillStyle = ocn;
+        renderer.setClearColor(state.colors.bg);
+        ctx.fillStyle = state.colors.ocean;
         ctx.fillRect(0, 0, W, H);
 
-        state.features.forEach((f) => {
-            const isSel = state.selected.has(f.properties.name);
-            ctx.fillStyle = isSel ? hlc : "#e0e0e0";
-            ctx.strokeStyle = "#bbb";
-            ctx.lineWidth = 0.8;
-            drawPath(ctx, f);
+        state.features.forEach(f => {
+            ctx.fillStyle = state.selected.has(f.properties.name) ? state.colors.hl : state.colors.land;
+            ctx.beginPath();
+            pathGenerator(f);
+            ctx.fill();
         });
 
         globeTex.needsUpdate = true;
         document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
         document.getElementById('sel-count').innerText = state.selected.size;
+        saveSettings();
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        globe.rotation.y += state.drift * (camera.position.length() / 20);
+        
+        // DYNAMIC INERTIA: Friction increases as you zoom in
+        const dist = camera.position.length();
+        controls.rotateSpeed = Math.min(1.0, (dist - 4.5) / 10);
+        controls.dampingFactor = Math.max(0.02, 0.08 * (dist / 25));
+        
         controls.update();
 
-        const camPos = camera.position.clone();
+        // Label management
         state.registry.forEach(c => {
             if(!state.labels) { c.label.style.opacity = 0; return; }
             const v = latLngToVec3(c.lat, c.lon, 5.05).applyMatrix4(globe.matrixWorld);
-            const dot = v.clone().normalize().dot(camPos.clone().normalize());
-            
-            if (dot > 0.3) {
+            const camDist = v.distanceTo(camera.position);
+            const dot = v.clone().normalize().dot(camera.position.clone().normalize());
+            if (dot > 0.4 && camDist < 12) {
                 v.project(camera);
                 c.label.style.opacity = 1;
                 c.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
                 c.label.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
+                c.label.style.fontSize = `${Math.max(9, 14 - camDist)}px`;
             } else { c.label.style.opacity = 0; }
         });
+
         renderer.render(scene, camera);
-        document.getElementById('zoomRange').value = camera.position.length();
+        document.getElementById('zoomRange').value = dist;
     }
 
     function latLngToVec3(lat, lng, r) {
@@ -236,42 +310,101 @@
         return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     }
 
-    // --- CLIPBOARD ---
-    function copySelection() {
-        const data = JSON.stringify([...state.selected]);
-        navigator.clipboard.writeText(data);
-        alert("Selection copied to clipboard!");
+    // --- IO & PERSISTENCE ---
+    function saveSettings() {
+        localStorage.setItem('gm_v26', JSON.stringify({ 
+            sel: [...state.selected], 
+            cols: state.colors, 
+            lbl: state.labels 
+        }));
     }
 
-    async function pasteSelection() {
+    function loadSettings() {
+        const saved = localStorage.getItem('gm_v26');
+        if (saved) {
+            const d = JSON.parse(saved);
+            state.selected = new Set(d.sel);
+            state.colors = d.cols;
+            state.labels = d.lbl;
+            Object.keys(state.colors).forEach(k => {
+                const el = document.getElementById('cfg' + k.charAt(0).toUpperCase() + k.slice(1));
+                if(el) el.value = state.colors[k];
+            });
+            document.getElementById('cfgLabels').checked = state.labels;
+        }
+    }
+
+    function hardReset() { if(confirm("Reset all settings and selections?")) { localStorage.clear(); location.reload(); } }
+
+    // --- DIALOGUES ---
+    function openExport() {
+        const fmt = document.getElementById('ioFormat').value;
+        const list = [...state.selected].sort();
+        let out = "";
+        if(fmt === 'json') out = JSON.stringify(list);
+        else if(fmt === 'csv') out = list.join(',');
+        else {
+            out = "## Countries\n";
+            list.forEach((n, i) => out += `${i+1}. ${n}\n`);
+        }
+        navigator.clipboard.writeText(out);
+        document.getElementById('exportArea').value = out;
+        document.getElementById('exportModal').style.display = 'block';
+    }
+
+    function openImport() {
+        const fmt = document.getElementById('ioFormat').value;
+        const list = [...state.selected].sort();
+        let out = "";
+        if(fmt === 'json') out = JSON.stringify(list);
+        else if(fmt === 'csv') out = list.join(',');
+        else {
+            out = "## Countries\n";
+            list.forEach((n, i) => out += `${i+1}. ${n}\n`);
+        }
+        document.getElementById('importArea').value = out;
+        document.getElementById('importModal').style.display = 'block';
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    function processImport() {
+        const txt = document.getElementById('importArea').value;
         try {
-            const text = await navigator.clipboard.readText();
-            const list = JSON.parse(text);
-            if (Array.isArray(list)) {
-                state.selected = new Set(list);
-                redrawWorld();
+            if(txt.startsWith('[')) {
+                state.selected = new Set(JSON.parse(txt));
+            } else if(txt.startsWith('##')) {
+                state.selected = new Set(txt.split('\n').slice(1).map(line => {
+                    const match = line.match(/^\d+\.\s+(.+)$/);
+                    return match ? match[1].replace(/- \[x\] /g, '').trim() : '';
+                }).filter(s => s));
+            } else {
+                state.selected = new Set(txt.split(/,|\n/).map(s => s.replace(/- \[x\] /g, '').trim()).filter(s => s));
             }
-        } catch (e) { alert("Invalid clipboard data."); }
+            redrawWorld();
+        } catch(e) { alert("Format mismatch."); }
+        document.getElementById('importArea').value = '';
+        closeModal('importModal');
     }
 
-    // --- INPUTS ---
-    window.addEventListener('pointerdown', e => { dragStart = {x:e.clientX, y:e.clientY}; isDragging = false; });
-    window.addEventListener('pointermove', e => { if(Math.hypot(e.clientX-dragStart.x, e.clientY-dragStart.y) > 8) isDragging = true; });
+    // --- INTERACTION ---
+    let dragData = { start: 0, moved: false };
+    window.addEventListener('pointerdown', () => { dragData.start = Date.now(); dragData.moved = false; });
+    window.addEventListener('pointermove', () => dragData.moved = true);
     window.addEventListener('pointerup', e => {
-        if (isDragging || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
+        if (dragData.moved && (Date.now() - dragData.start > 200) || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
 
         const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
         const ray = new THREE.Raycaster();
         ray.setFromCamera(mouse, camera);
-        
         const hits = ray.intersectObject(globe);
         if (hits.length > 0 && hits[0].uv) {
             const uv = hits[0].uv;
-            const x = Math.floor(uv.x * W);
-            const y = Math.floor((1 - uv.y) * H);
+            const x = Math.floor(uv.x * W), y = Math.floor((1 - uv.y) * H);
             const p = idCtx.getImageData(x, y, 1, 1).data;
             const id = p[0] + (p[1] << 8) + (p[2] << 16) - 1;
-
             if (id >= 0 && id < state.features.length) {
                 const name = state.features[id].properties.name;
                 state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
@@ -280,13 +413,18 @@
         }
     });
 
-    function zoomStep(f) { 
-        const newLen = THREE.MathUtils.clamp(camera.position.length() * (1/f), 6, 25);
-        camera.position.setLength(newLen);
-    }
+    function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 5.5, 25)); }
     document.getElementById('zoomRange').oninput = (e) => camera.position.setLength(e.target.value);
-    document.getElementById('cfgLabels').onchange = (e) => state.labels = e.target.checked;
-    document.querySelectorAll('input[type="color"]').forEach(i => i.oninput = redrawWorld);
+    document.querySelectorAll('input[type="color"]').forEach(i => {
+        i.oninput = () => {
+            state.colors.bg = document.getElementById('cfgBg').value;
+            state.colors.ocean = document.getElementById('cfgOcean').value;
+            state.colors.land = document.getElementById('cfgLand').value;
+            state.colors.hl = document.getElementById('cfgHl').value;
+            redrawWorld();
+        };
+    });
+    document.getElementById('cfgLabels').onclick = (e) => state.labels = e.target.checked;
     window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
     init();
