@@ -24,21 +24,22 @@
         #panel { position: fixed; background: var(--ui); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 300; border: 1px solid #222; }
         .handle { position: absolute; background: var(--ui); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #222; }
 
-        @media (min-width: 769px) {
-            #panel { left: 0; top: 0; width: 320px; height: 100%; transform: translateX(0); }
-            #panel.closed { transform: translateX(-100%); }
-            .handle { left: 100%; top: 50%; transform: translateY(-50%); width: 40px; height: 70px; border-left: none; border-radius: 0 12px 12px 0; }
-            #panel.closed .handle svg { transform: rotate(180deg); }
-        }
+         @media (min-width: 769px) {
+             #panel { left: 0; top: 0; width: 320px; height: 100%; transform: translateX(0); }
+             #panel.closed { transform: translateX(-100%); }
+             .handle { left: 100%; top: 50%; transform: translateY(-50%); width: 40px; height: 70px; border-left: none; border-radius: 0 12px 12px 0; }
+             .handle svg { transform: rotate(180deg); }
+             #panel.closed .handle svg { transform: rotate(0deg); }
+         }
 
-        @media (max-width: 768px) {
-            #panel { bottom: 0; left: 0; right: 0; border-radius: 24px 24px 0 0; transform: translateY(0); }
-            #panel.closed { transform: translateY(100%); }
-            .handle { top: -40px; left: 50%; transform: translateX(-50%); width: 70px; height: 40px; border-bottom: none; border-radius: 12px 12px 0 0; }
-            .handle svg { transform: rotate(90deg); }
-            #panel.closed .handle svg { transform: rotate(-90deg); }
-            .content { padding: 15px 20px 30px; max-height: 45vh; }
-        }
+         @media (max-width: 768px) {
+             #panel { bottom: 0; left: 0; right: 0; border-radius: 24px 24px 0 0; transform: translateY(0); }
+             #panel.closed { transform: translateY(100%); }
+             .handle { top: -40px; left: 50%; transform: translateX(-50%); width: 70px; height: 40px; border-bottom: none; border-radius: 12px 12px 0 0; }
+             .handle svg { transform: rotate(90deg); }
+             #panel.closed .handle svg { transform: rotate(-90deg); }
+             .content { padding: 15px 20px 30px; max-height: 45vh; }
+         }
 
         .content { padding: 30px 25px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
         .section { display: flex; flex-direction: column; gap: 8px; }
@@ -63,8 +64,8 @@
     <button onclick="window.zoomStep(0.7)">-</button>
 </div>
 
-<div id="panel">
-    <div class="handle" onclick="document.getElementById('panel').classList.toggle('closed')">
+ <div id="panel" class="closed">
+     <div class="handle" onclick="window.togglePanel()">
         <svg width="14" height="14" viewBox="0 0 10 10"><path d="M2 2 L8 5 L2 8 Z" fill="#777"/></svg>
     </div>
     <div class="content">
@@ -152,6 +153,9 @@
     const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.top = '0';
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -159,6 +163,7 @@
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
     labelRenderer.domElement.style.position = 'absolute';
     labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.left = '0';
     labelRenderer.domElement.style.zIndex = '5';
     labelRenderer.domElement.style.pointerEvents = 'none';
     document.body.appendChild(labelRenderer.domElement);
@@ -221,11 +226,17 @@
         state.baseDirty = false;
         state.hlDirty = false;
 
-        // Update selection UI after initial load
-        document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
-        document.getElementById('sel-count').innerText = state.selected.size;
+         // Update selection UI after initial load
+         document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
+         document.getElementById('sel-count').innerText = state.selected.size;
 
-        animate();
+         // Ensure panel is expanded on desktop
+         if (window.innerWidth >= 769) {
+             document.getElementById('panel').classList.remove('closed');
+         }
+         updateLayout();
+
+         animate();
     }
 
     function drawBorders() {
@@ -366,9 +377,32 @@
             if(el) el.value = state.colors[k];
         });
         document.getElementById('cfgLabels').checked = state.labels;
-    }
 
-    // --- UI GLOBALS ---
+        // Mobile: start with panel collapsed
+        const isMobile = window.innerWidth < 769;
+        if (isMobile) {
+            document.getElementById('panel').classList.add('closed');
+        }
+     }
+
+     function updateLayout() {
+         const isDesktop = window.innerWidth >= 769;
+         const panel = document.getElementById('panel');
+         const isPanelOpen = isDesktop && !panel.classList.contains('closed');
+         const offset = isPanelOpen ? panel.offsetWidth : 0;
+
+         const width = window.innerWidth - offset;
+         const height = window.innerHeight;
+
+         renderer.setSize(width, height);
+         renderer.domElement.style.left = offset + 'px';
+         labelRenderer.setSize(width, height);
+         labelRenderer.domElement.style.left = offset + 'px';
+         camera.aspect = width / height;
+         camera.updateProjectionMatrix();
+     }
+
+     // --- UI GLOBALS ---
     function getExportContent(fmt) {
         const list = [...state.selected].sort();
         if(fmt === 'json') return JSON.stringify(list);
@@ -414,47 +448,26 @@
     document.getElementById('modalCopy').onclick = () => {
         navigator.clipboard.writeText(document.getElementById('modalArea').value);
     };
-    window.zoomStep = (f) => camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 5.1, 22));
-    window.hardReset = () => { if(confirm("Factory reset?")) { localStorage.clear(); window.location.href = window.location.pathname; } };
+window.zoomStep = (f) => camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 5.1, 22));
+window.hardReset = () => { if(confirm("Factory reset?")) { localStorage.clear(); window.location.href = window.location.pathname; } };
+window.togglePanel = function() {
+    document.getElementById('panel').classList.toggle('closed');
+    updateLayout();
+};
+
 
     // --- INTERACTIONS ---
-    let startX, startY;
-    window.addEventListener('pointerdown', e => {
-        startX = e.clientX;
-        startY = e.clientY;
-    });
+    let dragData = { start: 0, moved: false };
+    window.addEventListener('pointerdown', () => { dragData.start = Date.now(); dragData.moved = false; });
+    window.addEventListener('pointermove', () => dragData.moved = true);
     window.addEventListener('pointerup', e => {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        const moved = dx*dx + dy*dy > 25; // >5px = drag
+        if (dragData.moved && (Date.now() - dragData.start > 200) || e.target.closest('#panel') || e.target.closest('.zoom-tray') || e.target.closest('.modal')) return;
 
-        if (moved || e.target.closest('#panel') || e.target.closest('.zoom-tray') || e.target.closest('.modal')) return;
-
-        const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
-        const ray = new THREE.Raycaster();
-        ray.setFromCamera(mouse, camera);
-        const hits = ray.intersectObject(globe);
-        if (hits.length > 0 && hits[0].uv) {
-            const uv = hits[0].uv;
-            const x = Math.floor(uv.x * W), y = Math.floor((1 - uv.y) * H);
-            const p = idCtx.getImageData(x, y, 1, 1).data;
-            const id = p[0] + (p[1] << 8) + (p[2] << 16) - 1;
-            if (id >= 0 && id < state.features.length) {
-                const name = state.features[id].properties.name;
-                state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
-                state.hlDirty = true;
-                state.redraw = true;
-            }
-        }
-    });
-    window.addEventListener('pointermove', e => {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        if (dx*dx + dy*dy > 25) dragStart = true; // 5px threshold
-    });
-    window.addEventListener('pointerup', e => {
-        if (dragStart || e.target.closest('#panel') || e.target.closest('.zoom-tray') || e.target.closest('.modal')) return;
-        const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+        const rect = renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+        );
         const ray = new THREE.Raycaster();
         ray.setFromCamera(mouse, camera);
         const hits = ray.intersectObject(globe);
@@ -489,10 +502,8 @@
         };
     });
     document.getElementById('cfgLabels').onchange = (e) => state.labels = e.target.checked;
-    window.onresize = () => { 
-        camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); 
-        renderer.setSize(window.innerWidth, window.innerHeight); labelRenderer.setSize(window.innerWidth, window.innerHeight); 
-    };
+     window.onresize = updateLayout;
+
 
     init();
 </script>
