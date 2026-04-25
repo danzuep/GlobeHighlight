@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Globe Highlight V30</title>
+    <title>Globe Highlight V31</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
@@ -80,13 +80,12 @@
         <div class="section">
             <label>Management</label>
             <select id="ioFormat">
-                <option value="csv">CSV (Standard)</option>
+                <option value="nlsv">New Line List</option>
                 <option value="json">JSON Array</option>
-                <option value="md">Markdown List</option>
+                <option value="md">Markdown Numbered</option>
             </select>
             <div style="display:flex; gap: 8px; margin-top: 5px;">
-                <button onclick="window.openExport()" style="flex:1">Export</button>
-                <button onclick="window.openImport()" style="flex:1">Import</button>
+                <button onclick="window.openEdit()" style="flex:1">Edit</button>
             </div>
             <button onclick="window.hardReset()" style="color: #ff5555; border-color: #442222; margin-top: 5px;">Factory Reset</button>
         </div>
@@ -101,10 +100,16 @@
 <div id="modal" class="modal">
     <h3 id="modalTitle" style="margin-top:0">Data</h3>
     <textarea id="modalArea"></textarea>
-    <div style="display:flex; justify-content: flex-end; gap: 10px;">
-        <button id="modalApply" style="display:none">Import</button>
-        <button onclick="window.closeModal()">Close</button>
-    </div>
+        <div style="display:flex; justify-content: flex-end; gap: 10px;">
+            <button id="modalApply" style="display:none; flex: 0 0 auto; min-width: 80px;">Apply</button>
+            <button id="modalCopy" style="flex: 0 0 auto; padding: 8px 12px;" title="Copy to clipboard">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="5" y="9" width="12" height="10" rx="1"/>
+                    <rect x="10" y="4" width="12" height="10" rx="1"/>
+                </svg>
+            </button>
+            <button onclick="window.closeModal()">Close</button>
+        </div>
 </div>
 
 <script type="module">
@@ -215,6 +220,11 @@
         state.redraw = false;
         state.baseDirty = false;
         state.hlDirty = false;
+
+        // Update selection UI after initial load
+        document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
+        document.getElementById('sel-count').innerText = state.selected.size;
+
         animate();
     }
 
@@ -335,7 +345,7 @@
     function loadSettings() {
         const saved = localStorage.getItem('gm_v30');
         const urlParams = new URLSearchParams(window.location.search).get('selected');
-        
+
         if (saved) {
             const d = JSON.parse(saved);
             state.selected = new Set(d.sel);
@@ -346,7 +356,10 @@
             camera.position.set(6, 7, -2);
         }
 
-        if (urlParams) state.selected = new Set(urlParams.split(','));
+        if (urlParams) {
+            const urlSet = new Set(urlParams.split(',').map(s => s.trim()).filter(s => s));
+            if (urlSet.size > 0) state.selected = urlSet;
+        }
 
         Object.keys(state.colors).forEach(k => {
             const el = document.getElementById('cfg' + k.charAt(0).toUpperCase() + k.slice(1));
@@ -356,41 +369,89 @@
     }
 
     // --- UI GLOBALS ---
-    window.openExport = () => {
-        const fmt = document.getElementById('ioFormat').value;
+    function getExportContent(fmt) {
         const list = [...state.selected].sort();
-        let out = (fmt === 'json') ? JSON.stringify(list) : (fmt === 'csv') ? list.join(',') : list.map(n => `* ${n}`).join('\n');
-        navigator.clipboard.writeText(out);
-        showModal("Export", out);
+        if(fmt === 'json') return JSON.stringify(list);
+        if(fmt === 'nlsv') return list.join('\n');
+        return "## Countries\n" + list.map((n,i) => `${i+1}. ${n}`).join('\n');
+    }
+
+    window.openEdit = () => {
+        showModal("Edit Countries");
     };
 
-    window.openImport = () => showModal("Import", "", true);
-
-    function showModal(title, val, isImport = false) {
+    function showModal(title, canApply = true) {
+        const fmt = document.getElementById('ioFormat').value;
+        const out = getExportContent(fmt);
         const m = document.getElementById('modal');
         document.getElementById('modalTitle').innerText = title;
-        document.getElementById('modalArea').value = val;
-        document.getElementById('modalApply').style.display = isImport ? 'block' : 'none';
-        document.getElementById('modalApply').onclick = () => {
-            const txt = document.getElementById('modalArea').value;
-            try {
-                if(txt.startsWith('[')) state.selected = new Set(JSON.parse(txt));
-                else state.selected = new Set(txt.split(/,|\n/).map(s => s.replace(/^\*\s*/, '').trim()).filter(s => s));
-                state.redraw = true;
-                window.closeModal();
-            } catch(e) { alert("Format not recognized."); }
-        };
+        document.getElementById('modalArea').value = out;
+        document.getElementById('modalApply').style.display = canApply ? 'block' : 'none';
+        document.getElementById('modalApply').onclick = () => processImport();
         m.style.display = 'block';
     }
 
+    function processImport() {
+        const txt = document.getElementById('modalArea').value;
+        try {
+            if(txt.startsWith('[')) {
+                state.selected = new Set(JSON.parse(txt));
+            } else if(txt.startsWith('##')) {
+                state.selected = new Set(txt.split('\n').slice(1).map(line => {
+                    const match = line.match(/^\d+\.\s+(.+)$/);
+                    return match ? match[1].replace(/- \[x\] /g, '').trim() : '';
+                }).filter(s => s));
+            } else {
+                state.selected = new Set(txt.split(/,|\n/).map(s => s.replace(/- \[x\] /g, '').trim()).filter(s => s));
+            }
+            state.hlDirty = true;
+            state.redraw = true;
+            window.closeModal();
+        } catch(e) { alert("Format not recognized."); }
+    }
+
     window.closeModal = () => document.getElementById('modal').style.display = 'none';
+    document.getElementById('modalCopy').onclick = () => {
+        navigator.clipboard.writeText(document.getElementById('modalArea').value);
+    };
     window.zoomStep = (f) => camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 5.1, 22));
     window.hardReset = () => { if(confirm("Factory reset?")) { localStorage.clear(); window.location.href = window.location.pathname; } };
 
     // --- INTERACTIONS ---
-    let dragStart = false;
-    window.addEventListener('pointerdown', () => dragStart = false);
-    window.addEventListener('pointermove', () => dragStart = true);
+    let startX, startY;
+    window.addEventListener('pointerdown', e => {
+        startX = e.clientX;
+        startY = e.clientY;
+    });
+    window.addEventListener('pointerup', e => {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const moved = dx*dx + dy*dy > 25; // >5px = drag
+
+        if (moved || e.target.closest('#panel') || e.target.closest('.zoom-tray') || e.target.closest('.modal')) return;
+
+        const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(mouse, camera);
+        const hits = ray.intersectObject(globe);
+        if (hits.length > 0 && hits[0].uv) {
+            const uv = hits[0].uv;
+            const x = Math.floor(uv.x * W), y = Math.floor((1 - uv.y) * H);
+            const p = idCtx.getImageData(x, y, 1, 1).data;
+            const id = p[0] + (p[1] << 8) + (p[2] << 16) - 1;
+            if (id >= 0 && id < state.features.length) {
+                const name = state.features[id].properties.name;
+                state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
+                state.hlDirty = true;
+                state.redraw = true;
+            }
+        }
+    });
+    window.addEventListener('pointermove', e => {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (dx*dx + dy*dy > 25) dragStart = true; // 5px threshold
+    });
     window.addEventListener('pointerup', e => {
         if (dragStart || e.target.closest('#panel') || e.target.closest('.zoom-tray') || e.target.closest('.modal')) return;
         const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
