@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Globe Highlight V28</title>
+    <title>Globe Highlight V29</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
@@ -114,20 +114,34 @@
         labels: false, 
         features: [], 
         colors: { bg: '#0a0c10', ocean: '#2a4b6b', land: '#8ca68c', hl: '#ffd700' },
-        redraw: true 
+        redraw: true,
+        baseDirty: true,
+        hlDirty: true
     };
 
-    // --- ENGINES ---
+    // Base layer canvas - land + ocean (static unless colors change)
+    const baseCanvas = document.createElement('canvas');
+    baseCanvas.width = W; baseCanvas.height = H;
+    const baseCtx = baseCanvas.getContext('2d');
+    const baseProjection = d3.geoEquirectangular().translate([W/2, H/2]).scale(W / (2 * Math.PI));
+    const basePath = d3.geoPath(baseProjection, baseCtx);
+
+    // Highlight layer canvas - only selected highlights (redrawn selectively)
+    const hlCanvas = document.createElement('canvas');
+    hlCanvas.width = W; hlCanvas.height = H;
+    const hlCtx = hlCanvas.getContext('2d');
+    const hlProjection = d3.geoEquirectangular().translate([W/2, H/2]).scale(W / (2 * Math.PI));
+    const hlPath = d3.geoPath(hlProjection, hlCtx);
+
+    // Combined output canvas - base + highlight layers
     const mainCanvas = document.createElement('canvas');
     mainCanvas.width = W; mainCanvas.height = H;
     const ctx = mainCanvas.getContext('2d');
-    const projection = d3.geoEquirectangular().translate([W/2, H/2]).scale(W / (2 * Math.PI));
-    const pathGenerator = d3.geoPath(projection, ctx);
 
     const idCanvas = document.createElement('canvas');
     idCanvas.width = W; idCanvas.height = H;
     const idCtx = idCanvas.getContext('2d');
-    const idPath = d3.geoPath(projection, idCtx);
+    const idPath = d3.geoPath(baseProjection, idCtx);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -186,7 +200,12 @@
         });
 
         drawBorders();
-        state.redraw = true;
+        drawBaseLayer();
+        drawHighlightLayer();
+        compositeLayers();
+        state.redraw = false;
+        state.baseDirty = false;
+        state.hlDirty = false;
         animate();
     }
 
@@ -212,20 +231,52 @@
         borderGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
     }
 
+    function drawBaseLayer() {
+        // Fill ocean
+        baseCtx.fillStyle = state.colors.ocean;
+        baseCtx.fillRect(0, 0, W, H);
+        // Fill all land
+        state.features.forEach(f => {
+            baseCtx.fillStyle = state.colors.land;
+            baseCtx.beginPath(); basePath(f); baseCtx.fill();
+        });
+    }
+
+    function drawHighlightLayer() {
+        // Clear highlight layer (transparent)
+        hlCtx.clearRect(0, 0, W, H);
+        // Draw only selected countries
+        state.selected.forEach(name => {
+            const f = state.features.find(f => f.properties.name === name);
+            if (f) {
+                hlCtx.fillStyle = state.colors.hl;
+                hlCtx.beginPath(); hlPath(f); hlCtx.fill();
+            }
+        });
+    }
+
+    function compositeLayers() {
+        // Clear main canvas and paint base + highlight
+        ctx.clearRect(0, 0, W, H);
+        ctx.drawImage(baseCanvas, 0, 0);
+        ctx.drawImage(hlCanvas, 0, 0);
+        globeTex.needsUpdate = true;
+    }
+
     function redrawWorld() {
         if(!state.redraw) return;
-        renderer.setClearColor(state.colors.bg);
-        ctx.fillStyle = state.colors.ocean;
-        ctx.fillRect(0, 0, W, H);
-        state.features.forEach(f => {
-            ctx.fillStyle = state.selected.has(f.properties.name) ? state.colors.hl : state.colors.land;
-            ctx.beginPath(); pathGenerator(f); ctx.fill();
-        });
-        globeTex.needsUpdate = true;
+        const needsBase = state.baseDirty;
+        const needsHl = state.hlDirty;
+        if (needsBase) drawBaseLayer();
+        if (needsHl) drawHighlightLayer();
+        if (needsBase || needsHl) compositeLayers();
+        
         document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
         document.getElementById('sel-count').innerText = state.selected.size;
         saveSettings();
         syncURL();
+        state.baseDirty = false;
+        state.hlDirty = false;
         state.redraw = false;
     }
 
@@ -237,8 +288,8 @@
         const dist = camera.position.length();
         const minDist = 5.1, maxDist = 22;
         const t = (dist - minDist) / (maxDist - minDist);
-        controls.rotateSpeed = (dist / 510) + t * (1 - (dist / 510));
-        controls.dampingFactor = 0.02 * (5.1 / dist);
+        controls.rotateSpeed = t * 1 + (1 - t) * (minDist / 500);
+        controls.dampingFactor = 0.02 * (minDist / dist);
         controls.update();
 
         document.getElementById('zoomRange').value = (controls.maxDistance + controls.minDistance) - dist;
@@ -348,6 +399,7 @@
             if (id >= 0 && id < state.features.length) {
                 const name = state.features[id].properties.name;
                 state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
+                state.hlDirty = true;
                 state.redraw = true;
             }
         }
@@ -364,6 +416,8 @@
             state.colors.ocean = document.getElementById('cfgOcean').value;
             state.colors.land = document.getElementById('cfgLand').value;
             state.colors.hl = document.getElementById('cfgHl').value;
+            state.baseDirty = true;
+            state.hlDirty = true; // highlight color also affects highlight layer
             state.redraw = true;
         };
     });
