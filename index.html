@@ -3,100 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Globe Highlight V27</title>
+    <title>Globe Highlight V28</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
-        :root { --accent: #ffd700; --bg: #05070a; --ui: rgba(15, 18, 25, 0.96); --text: #f0f0f0; }
+        :root { --accent: #ffd700; --bg: #0a0c10; --ui: rgba(15, 20, 25, 0.98); --text: #f0f0f0; }
         body { margin: 0; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; background: var(--bg); color: var(--text); }
-        
-        #labels { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-        .label { position: absolute; font-size: 11px; font-weight: 700; color: #fff; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; text-shadow: 0 0 6px #000; letter-spacing: 0.5px; }
 
-        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--ui); padding: 15px 10px; border-radius: 40px; border: 1px solid #333; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-        #zoomRange { appearance: slider-vertical; width: 6px; height: 180px; accent-color: var(--accent); cursor: pointer; }
+        /* Labels */
+        .label { font-size: 11px; font-weight: 700; color: #fff; pointer-events: none; text-shadow: 0 0 4px #000; letter-spacing: 0.5px; opacity: 0.9; }
 
-        #panel { position: fixed; background: var(--ui); box-shadow: 0 0 50px rgba(0,0,0,0.8); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 200; border: 1px solid #222; }
-        
-        /* Responsive Handles */
+        /* Zoom UI */
+        .zoom-tray { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; background: var(--ui); padding: 12px 8px; border-radius: 40px; border: 1px solid #333; z-index: 100; }
+        #zoomRange { appearance: slider-vertical; width: 6px; height: 160px; accent-color: var(--accent); cursor: pointer; }
+
+        /* Settings Panel */
+        #panel { position: fixed; background: var(--ui); transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; z-index: 300; border: 1px solid #222; }
         .handle { position: absolute; background: var(--ui); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #222; }
-        .handle svg { transition: 0.4s; }
 
         @media (min-width: 769px) {
             #panel { left: 0; top: 0; width: 320px; height: 100%; transform: translateX(0); }
-            #panel.closed { transform: translateX(-320px); }
+            #panel.closed { transform: translateX(-100%); }
             .handle { left: 100%; top: 50%; transform: translateY(-50%); width: 40px; height: 70px; border-left: none; border-radius: 0 12px 12px 0; }
             #panel.closed .handle svg { transform: rotate(180deg); }
         }
 
         @media (max-width: 768px) {
             #panel { bottom: 0; left: 0; right: 0; border-radius: 24px 24px 0 0; transform: translateY(0); }
-            #panel.closed { transform: translateY(calc(100% - 50px)); }
+            #panel.closed { transform: translateY(100%); }
             .handle { top: -40px; left: 50%; transform: translateX(-50%); width: 70px; height: 40px; border-bottom: none; border-radius: 12px 12px 0 0; }
             .handle svg { transform: rotate(90deg); }
             #panel.closed .handle svg { transform: rotate(-90deg); }
-            .content { padding: 10px 20px 30px; max-height: 45vh; }
+            .content { padding: 15px 20px 30px; max-height: 45vh; }
         }
 
-        .content { padding: 35px 25px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .content { padding: 30px 25px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
         .section { display: flex; flex-direction: column; gap: 8px; }
-        .section label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #555; letter-spacing: 2px; border-bottom: 1px solid #222; padding-bottom: 4px; }
+        .section label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #666; letter-spacing: 2px; border-bottom: 1px solid #222; padding-bottom: 4px; }
         .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         
-        .btn-group { display: flex; gap: 4px; }
-        select { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0a0c10; color: #fff; font-size: 11px; outline: none; }
-        button { flex: 1; padding: 10px; border: 1px solid #333; background: #151921; color: #fff; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 700; transition: 0.2s; }
+        input[type="color"] { border: 1px solid #333; width: 28px; height: 28px; cursor: pointer; background: none; border-radius: 4px; padding: 0; }
+        select, button { padding: 10px; border: 1px solid #333; background: #151921; color: #fff; border-radius: 8px; font-size: 11px; cursor: pointer; transition: 0.2s; }
         button:hover { background: #202632; border-color: var(--accent); }
-        button.danger { color: #ff4d4d; border-color: #441111; }
+        ol { font-size: 11px; padding-left: 18px; column-count: 2; color: #888; }
 
-        ol { font-size: 11px; padding-left: 18px; column-count: 2; margin: 0; color: #888; }
-        input[type="color"] { border: none; width: 28px; height: 28px; cursor: pointer; background: none; }
-
-        .modal {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--ui);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            z-index: 1000;
-            display: none;
-            color: var(--text);
-            max-width: 500px;
-            width: 90%;
-        }
-        .modal h3 { margin: 0 0 15px 0; font-size: 16px; }
-        .modal textarea {
-            width: 100%;
-            height: 200px;
-            background: #0a0c10;
-            border: 1px solid #333;
-            color: #fff;
-            border-radius: 4px;
-            padding: 8px;
-            font-family: monospace;
-            font-size: 12px;
-            resize: vertical;
-        }
-        .modal-btns {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-            margin-top: 10px;
-        }
+        /* Modals */
+        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--ui); padding: 25px; border-radius: 12px; border: 1px solid #333; z-index: 1000; display: none; width: 90%; max-width: 450px; }
+        textarea { width: 100%; height: 180px; background: #05070a; border: 1px solid #333; color: #fff; border-radius: 8px; padding: 10px; font-size: 12px; resize: none; margin: 15px 0; }
     </style>
 </head>
 <body>
 
-<div id="labels"></div>
 <div class="zoom-tray">
-    <button onclick="zoomStep(1.3)">+</button>
-    <input type="range" id="zoomRange" min="5.5" max="25" step="0.1" value="15">
-    <button onclick="zoomStep(0.7)">-</button>
+    <button onclick="window.zoomStep(1.3)">+</button>
+    <input type="range" id="zoomRange" min="5.1" max="22" step="0.01" value="12">
+    <button onclick="window.zoomStep(0.7)">-</button>
 </div>
 
 <div id="panel">
@@ -105,26 +69,26 @@
     </div>
     <div class="content">
         <div class="section">
-            <label>Atmosphere</label>
-            <div class="row">Space <input type="color" id="cfgBg" value="#05070a"></div>
-            <div class="row">Ocean <input type="color" id="cfgOcean" value="#0d1b2a"></div>
-            <div class="row">Land <input type="color" id="cfgLand" value="#1b263b"></div>
-            <div class="row">Select <input type="color" id="cfgHl" value="#ffd700"></div>
-            <div class="row">Labels <input type="checkbox" id="cfgLabels"></div>
+            <label>Visuals</label>
+            <div class="row">Space <input type="color" id="cfgBg" value="#0a0c10"></div>
+            <div class="row">Ocean <input type="color" id="cfgOcean" value="#2a4b6b"></div>
+            <div class="row">Land <input type="color" id="cfgLand" value="#8ca68c"></div>
+            <div class="row">Selection <input type="color" id="cfgHl" value="#ffd700"></div>
+            <div class="row">Show Labels <input type="checkbox" id="cfgLabels"></div>
         </div>
-        
+
         <div class="section">
-            <label>Transfer</label>
+            <label>Management</label>
             <select id="ioFormat">
-                <option value="csv">CSV Commas</option>
+                <option value="csv">CSV (Standard)</option>
                 <option value="json">JSON Array</option>
-                <option value="md">MD List</option>
+                <option value="md">Markdown List</option>
             </select>
-            <div class="btn-group">
-                <button onclick="openExport()">Export</button>
-                <button onclick="openImport()">Import</button>
+            <div style="display:flex; gap: 8px; margin-top: 5px;">
+                <button onclick="window.openExport()" style="flex:1">Export</button>
+                <button onclick="window.openImport()" style="flex:1">Import</button>
             </div>
-            <button class="danger" onclick="hardReset()">Factory Reset Settings</button>
+            <button onclick="window.hardReset()" style="color: #ff5555; border-color: #442222; margin-top: 5px;">Factory Reset</button>
         </div>
 
         <div class="section">
@@ -134,82 +98,75 @@
     </div>
 </div>
 
-<div id="exportModal" class="modal">
-    <h3>Export Data</h3>
-    <textarea id="exportArea" readonly></textarea>
-    <button onclick="closeModal('exportModal')">Close</button>
-</div>
-
-<div id="importModal" class="modal">
-    <h3>Import Data</h3>
-    <textarea id="importArea" placeholder="Paste your markdown or JSON here..."></textarea>
-    <div class="modal-btns">
-        <button onclick="processImport()">Apply</button>
-        <button onclick="closeModal('importModal')">Cancel</button>
+<div id="modal" class="modal">
+    <h3 id="modalTitle" style="margin-top:0">Data</h3>
+    <textarea id="modalArea"></textarea>
+    <div style="display:flex; justify-content: flex-end; gap: 10px;">
+        <button id="modalApply" style="display:none">Import</button>
+        <button onclick="window.closeModal()">Close</button>
     </div>
 </div>
 
-<script>
-    const W = 8192, H = 4096; // 8K Texture for extreme zoom clarity
+<script type="module">
+    const W = 8192, H = 4096;
     const state = { 
         selected: new Set(), 
         labels: false, 
         features: [], 
-        registry: [],
-        colors: { bg: '#05070a', ocean: '#0d1b2a', land: '#1b263b', hl: '#ffd700' }
+        colors: { bg: '#0a0c10', ocean: '#2a4b6b', land: '#8ca68c', hl: '#ffd700' },
+        redraw: true 
     };
 
-    // --- SETUP CANVAS & D3 ---
+    // --- ENGINES ---
     const mainCanvas = document.createElement('canvas');
     mainCanvas.width = W; mainCanvas.height = H;
     const ctx = mainCanvas.getContext('2d');
     const projection = d3.geoEquirectangular().translate([W/2, H/2]).scale(W / (2 * Math.PI));
     const pathGenerator = d3.geoPath(projection, ctx);
 
-    // ID Map for clicking
     const idCanvas = document.createElement('canvas');
     idCanvas.width = W; idCanvas.height = H;
     const idCtx = idCanvas.getContext('2d');
     const idPath = d3.geoPath(projection, idCtx);
 
-    // --- THREE.JS ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
+    const labelRenderer = new THREE.CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.zIndex = '5';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    document.body.appendChild(labelRenderer.domElement);
+
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 5.2;
-    controls.maxDistance = 25;
+    controls.dampingFactor = 0.02; // Slicker inertia
+    controls.enablePan = false;
+    controls.minDistance = 5.1;
+    controls.maxDistance = 22;
 
     const globeTex = new THREE.CanvasTexture(mainCanvas);
-    globeTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-
     const globe = new THREE.Mesh(
-        new THREE.SphereGeometry(5, 160, 160),
+        new THREE.SphereGeometry(5, 128, 128),
         new THREE.MeshBasicMaterial({ map: globeTex })
     );
     scene.add(globe);
 
-    // Vector Border Layer
     const borderGroup = new THREE.Group();
     scene.add(borderGroup);
 
     async function init() {
-        camera.position.z = 15;
         loadSettings();
-        if(window.innerWidth < 769) {
-            document.getElementById('panel').classList.add('closed');
-        }
         
         const worldData = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r=>r.json());
         state.features = topojson.feature(worldData, worldData.objects.countries).features;
 
-        // One-time ID Map Draw
         idCtx.fillStyle = '#ffffff';
         idCtx.fillRect(0,0,W,H);
         state.features.forEach((f, i) => {
@@ -217,188 +174,168 @@
             idCtx.fillStyle = `rgb(${id & 0xFF}, ${(id >> 8) & 0xFF}, ${(id >> 16) & 0xFF})`;
             idCtx.beginPath(); idPath(f); idCtx.fill();
 
-            // Label Registry
             const centroid = d3.geoCentroid(f);
-            const lbl = document.createElement('div');
-            lbl.className = 'label';
-            lbl.innerText = f.properties.name;
-            document.getElementById('labels').appendChild(lbl);
-            state.registry.push({ name: f.properties.name, label: lbl, lon: centroid[0], lat: centroid[1] });
+            const div = document.createElement('div');
+            div.className = 'label';
+            div.textContent = f.properties.name;
+            const obj = new THREE.CSS2DObject(div);
+            obj.position.copy(latLngToVec3(centroid[1], centroid[0], 5.01));
+            obj.visible = false;
+            globe.add(obj);
+            f.label = obj;
         });
 
         drawBorders();
-        redrawWorld();
+        state.redraw = true;
         animate();
     }
 
     function drawBorders() {
         borderGroup.clear();
+        const mat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.1 });
         state.features.forEach(f => {
             const coords = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
-            coords.forEach(poly => {
-                poly.forEach(ring => {
-                    const pts = [];
-                    for(let i=0; i<ring.length; i++) {
-                        const p = ring[i], next = ring[(i+1)%ring.length];
-                        if (Math.abs(p[0]-next[0]) < 180) { // Antimeridian skip
-                            pts.push(latLngToVec3(p[1], p[0], 5.01));
-                        } else {
-                            renderSegment(pts);
-                            pts.length = 0;
-                        }
-                    }
-                    renderSegment(pts);
-                });
-            });
+            coords.forEach(poly => poly.forEach(ring => {
+                const pts = [];
+                for(let i=0; i<ring.length; i++) {
+                    const p = ring[i], next = ring[(i+1)%ring.length];
+                    if (Math.abs(p[0]-next[0]) < 180) pts.push(latLngToVec3(p[1], p[0], 5.002));
+                    else { renderSeg(pts, mat); pts.length = 0; }
+                }
+                renderSeg(pts, mat);
+            }));
         });
     }
 
-    function renderSegment(pts) {
+    function renderSeg(pts, mat) {
         if(pts.length < 2) return;
-        const geo = new THREE.BufferGeometry().setFromPoints(pts);
-        const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.4 }));
-        borderGroup.add(line);
+        borderGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
     }
 
     function redrawWorld() {
+        if(!state.redraw) return;
         renderer.setClearColor(state.colors.bg);
         ctx.fillStyle = state.colors.ocean;
         ctx.fillRect(0, 0, W, H);
-
         state.features.forEach(f => {
             ctx.fillStyle = state.selected.has(f.properties.name) ? state.colors.hl : state.colors.land;
-            ctx.beginPath();
-            pathGenerator(f);
-            ctx.fill();
+            ctx.beginPath(); pathGenerator(f); ctx.fill();
         });
-
         globeTex.needsUpdate = true;
         document.getElementById('sel-list').innerHTML = [...state.selected].sort().map(n => `<li>${n}</li>`).join('');
         document.getElementById('sel-count').innerText = state.selected.size;
         saveSettings();
+        syncURL();
+        state.redraw = false;
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        
-        // DYNAMIC INERTIA: Friction increases as you zoom in
-        const dist = camera.position.length();
-        controls.rotateSpeed = Math.min(1.0, (dist - 4.5) / 10);
-        controls.dampingFactor = Math.max(0.02, 0.08 * (dist / 25));
-        
         controls.update();
 
-        // Label management
-        state.registry.forEach(c => {
-            if(!state.labels) { c.label.style.opacity = 0; return; }
-            const v = latLngToVec3(c.lat, c.lon, 5.05).applyMatrix4(globe.matrixWorld);
-            const camDist = v.distanceTo(camera.position);
-            const dot = v.clone().normalize().dot(camera.position.clone().normalize());
-            if (dot > 0.4 && camDist < 12) {
-                v.project(camera);
-                c.label.style.opacity = 1;
-                c.label.style.left = `${(v.x * 0.5 + 0.5) * window.innerWidth}px`;
-                c.label.style.top = `${(-v.y * 0.5 + 0.5) * window.innerHeight}px`;
-                c.label.style.fontSize = `${Math.max(9, 14 - camDist)}px`;
-            } else { c.label.style.opacity = 0; }
+        // Sync Zoom Slider with Camera
+        const dist = camera.position.length();
+        const minDist = 5.1, maxDist = 22;
+        const t = (dist - minDist) / (maxDist - minDist);
+        controls.rotateSpeed = (dist / 510) + t * (1 - (dist / 510));
+        controls.dampingFactor = 0.02 * (5.1 / dist);
+        controls.update();
+
+        document.getElementById('zoomRange').value = (controls.maxDistance + controls.minDistance) - dist;
+
+        const camDir = camera.position.clone().normalize();
+        state.features.forEach(f => {
+            if(!state.labels) { f.label.visible = false; return; }
+            const dot = f.label.position.clone().normalize().dot(camDir);
+            f.label.visible = dot > 0.45;
         });
 
+        if(state.redraw) redrawWorld();
         renderer.render(scene, camera);
-        document.getElementById('zoomRange').value = dist;
+        labelRenderer.render(scene, camera);
     }
 
     function latLngToVec3(lat, lng, r) {
-        const phi = (90 - lat) * (Math.PI / 180);
-        const theta = (lng + 180) * (Math.PI / 180);
+        const phi = (90 - lat) * (Math.PI / 180), theta = (lng + 180) * (Math.PI / 180);
         return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
     }
 
-    // --- IO & PERSISTENCE ---
+    // --- PERSISTENCE ---
     function saveSettings() {
-        localStorage.setItem('gm_v26', JSON.stringify({ 
-            sel: [...state.selected], 
-            cols: state.colors, 
-            lbl: state.labels 
+        localStorage.setItem('gm_v30', JSON.stringify({ 
+            sel: [...state.selected], cols: state.colors, lbl: state.labels,
+            cam: { x: camera.position.x, y: camera.position.y, z: camera.position.z }
         }));
     }
 
+    function syncURL() {
+        const url = new URL(window.location);
+        if (state.selected.size === 1) url.searchParams.set('selected', [...state.selected].sort().join(','));
+        else url.searchParams.delete('selected');
+        window.history.replaceState({}, '', url);
+    }
+
     function loadSettings() {
-        const saved = localStorage.getItem('gm_v26');
+        const saved = localStorage.getItem('gm_v30');
+        const urlParams = new URLSearchParams(window.location.search).get('selected');
+        
         if (saved) {
             const d = JSON.parse(saved);
             state.selected = new Set(d.sel);
             state.colors = d.cols;
             state.labels = d.lbl;
-            Object.keys(state.colors).forEach(k => {
-                const el = document.getElementById('cfg' + k.charAt(0).toUpperCase() + k.slice(1));
-                if(el) el.value = state.colors[k];
-            });
-            document.getElementById('cfgLabels').checked = state.labels;
+            camera.position.set(d.cam.x, d.cam.y, d.cam.z);
+        } else {
+            camera.position.set(6, 7, -2);
         }
+
+        if (urlParams) state.selected = new Set(urlParams.split(','));
+
+        Object.keys(state.colors).forEach(k => {
+            const el = document.getElementById('cfg' + k.charAt(0).toUpperCase() + k.slice(1));
+            if(el) el.value = state.colors[k];
+        });
+        document.getElementById('cfgLabels').checked = state.labels;
     }
 
-    function hardReset() { if(confirm("Reset all settings and selections?")) { localStorage.clear(); location.reload(); } }
-
-    // --- DIALOGUES ---
-    function openExport() {
+    // --- UI GLOBALS ---
+    window.openExport = () => {
         const fmt = document.getElementById('ioFormat').value;
         const list = [...state.selected].sort();
-        let out = "";
-        if(fmt === 'json') out = JSON.stringify(list);
-        else if(fmt === 'csv') out = list.join(',');
-        else {
-            out = "## Countries\n";
-            list.forEach((n, i) => out += `${i+1}. ${n}\n`);
-        }
+        let out = (fmt === 'json') ? JSON.stringify(list) : (fmt === 'csv') ? list.join(',') : list.map(n => `* ${n}`).join('\n');
         navigator.clipboard.writeText(out);
-        document.getElementById('exportArea').value = out;
-        document.getElementById('exportModal').style.display = 'block';
+        showModal("Export", out);
+    };
+
+    window.openImport = () => showModal("Import", "", true);
+
+    function showModal(title, val, isImport = false) {
+        const m = document.getElementById('modal');
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalArea').value = val;
+        document.getElementById('modalApply').style.display = isImport ? 'block' : 'none';
+        document.getElementById('modalApply').onclick = () => {
+            const txt = document.getElementById('modalArea').value;
+            try {
+                if(txt.startsWith('[')) state.selected = new Set(JSON.parse(txt));
+                else state.selected = new Set(txt.split(/,|\n/).map(s => s.replace(/^\*\s*/, '').trim()).filter(s => s));
+                state.redraw = true;
+                window.closeModal();
+            } catch(e) { alert("Format not recognized."); }
+        };
+        m.style.display = 'block';
     }
 
-    function openImport() {
-        const fmt = document.getElementById('ioFormat').value;
-        const list = [...state.selected].sort();
-        let out = "";
-        if(fmt === 'json') out = JSON.stringify(list);
-        else if(fmt === 'csv') out = list.join(',');
-        else {
-            out = "## Countries\n";
-            list.forEach((n, i) => out += `${i+1}. ${n}\n`);
-        }
-        document.getElementById('importArea').value = out;
-        document.getElementById('importModal').style.display = 'block';
-    }
+    window.closeModal = () => document.getElementById('modal').style.display = 'none';
+    window.zoomStep = (f) => camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 5.1, 22));
+    window.hardReset = () => { if(confirm("Factory reset?")) { localStorage.clear(); window.location.href = window.location.pathname; } };
 
-    function closeModal(id) {
-        document.getElementById(id).style.display = 'none';
-    }
-
-    function processImport() {
-        const txt = document.getElementById('importArea').value;
-        try {
-            if(txt.startsWith('[')) {
-                state.selected = new Set(JSON.parse(txt));
-            } else if(txt.startsWith('##')) {
-                state.selected = new Set(txt.split('\n').slice(1).map(line => {
-                    const match = line.match(/^\d+\.\s+(.+)$/);
-                    return match ? match[1].replace(/- \[x\] /g, '').trim() : '';
-                }).filter(s => s));
-            } else {
-                state.selected = new Set(txt.split(/,|\n/).map(s => s.replace(/- \[x\] /g, '').trim()).filter(s => s));
-            }
-            redrawWorld();
-        } catch(e) { alert("Format mismatch."); }
-        document.getElementById('importArea').value = '';
-        closeModal('importModal');
-    }
-
-    // --- INTERACTION ---
-    let dragData = { start: 0, moved: false };
-    window.addEventListener('pointerdown', () => { dragData.start = Date.now(); dragData.moved = false; });
-    window.addEventListener('pointermove', () => dragData.moved = true);
+    // --- INTERACTIONS ---
+    let dragStart = false;
+    window.addEventListener('pointerdown', () => dragStart = false);
+    window.addEventListener('pointermove', () => dragStart = true);
     window.addEventListener('pointerup', e => {
-        if (dragData.moved && (Date.now() - dragData.start > 200) || e.target.closest('#panel') || e.target.closest('.zoom-tray')) return;
-
+        if (dragStart || e.target.closest('#panel') || e.target.closest('.zoom-tray') || e.target.closest('.modal')) return;
         const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
         const ray = new THREE.Raycaster();
         ray.setFromCamera(mouse, camera);
@@ -411,24 +348,30 @@
             if (id >= 0 && id < state.features.length) {
                 const name = state.features[id].properties.name;
                 state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
-                redrawWorld();
+                state.redraw = true;
             }
         }
     });
 
-    function zoomStep(f) { camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * (1/f), 5.5, 25)); }
-    document.getElementById('zoomRange').oninput = (e) => camera.position.setLength(e.target.value);
+    document.getElementById('zoomRange').oninput = (e) => {
+        const val = parseFloat(e.target.value);
+        camera.position.setLength((controls.maxDistance + controls.minDistance) - val);
+    };
+
     document.querySelectorAll('input[type="color"]').forEach(i => {
         i.oninput = () => {
             state.colors.bg = document.getElementById('cfgBg').value;
             state.colors.ocean = document.getElementById('cfgOcean').value;
             state.colors.land = document.getElementById('cfgLand').value;
             state.colors.hl = document.getElementById('cfgHl').value;
-            redrawWorld();
+            state.redraw = true;
         };
     });
-    document.getElementById('cfgLabels').onchange = (e) => { state.labels = e.target.checked; saveSettings(); };
-    window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+    document.getElementById('cfgLabels').onchange = (e) => state.labels = e.target.checked;
+    window.onresize = () => { 
+        camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); 
+        renderer.setSize(window.innerWidth, window.innerHeight); labelRenderer.setSize(window.innerWidth, window.innerHeight); 
+    };
 
     init();
 </script>
