@@ -13,249 +13,57 @@
     }
     </script>
 
-    <style>
-        :root { --accent: #ffd700; --bg: #000; --ui: rgba(10, 12, 18, 0.98); --text: #f0f0f0; }
-        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-        
-        #starCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
-
-        /* Panel Logic */
-        #panel { position: fixed; z-index: 300; background: var(--ui); transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1); border: 1px solid #222; }
-        .handle { position: absolute; background: var(--ui); cursor: pointer; display: flex; align-items: center; justify-content: center; border: 1px solid #333; }
-
-        @media (min-width: 769px) {
-            #panel { left: 0; top: 0; width: 320px; height: 100%; border-left: none; }
-            #panel.closed { transform: translateX(-100%); }
-            .handle { left: 100%; top: 50%; transform: translateY(-50%); width: 32px; height: 70px; border-radius: 0 12px 12px 0; border-left: none; }
-            #panel.closed .handle svg { transform: rotate(180deg); }
-        }
-
-        @media (max-width: 768px) {
-            #panel { bottom: 0; left: 0; width: 100%; height: 50%; border-right: none; border-left: none; }
-            #panel.closed { transform: translateY(100%); }
-            .handle { bottom: 100%; left: 50%; transform: translateX(-50%); width: 70px; height: 32px; border-radius: 12px 12px 0 0; border-bottom: none; }
-            .handle svg { transform: rotate(90deg); }
-            #panel.closed .handle svg { transform: rotate(-90deg); }
-        }
-
-        .content { padding: 25px; display: flex; flex-direction: column; gap: 15px; height: 100%; overflow-y: auto; }
-        .section label { display: block; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #555; margin-bottom: 8px; border-bottom: 1px solid #222; letter-spacing: 1px; }
-        .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #bbb; }
-        
-        /* Remove box from color input */
-        input[type="color"] { border: none; padding: 0; width: 30px; height: 30px; background: none; cursor: pointer; -webkit-appearance: none; }
-        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
-
-        button { padding: 10px; background: #151921; border: 1px solid #333; color: white; border-radius: 8px; cursor: pointer; font-size: 12px; }
-        
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--ui); padding: 20px; border-radius: 15px; border: 1px solid #444; z-index: 1000; width: 90%; max-width: 350px; box-shadow: 0 30px 70px rgba(0,0,0,0.9); }
-        textarea { width: 100%; height: 200px; background: #000; color: #8c8; font-family: monospace; padding: 10px; margin: 10px 0; border: 1px solid #333; border-radius: 8px; resize: none; font-size: 11px; }
-
-        .icon-btn { background: transparent; border: none; color: #666; padding: 5px; cursor: pointer; display: flex; align-items: center; }
-        .icon-btn:hover { color: var(--accent); }
-
-        select { background: #000; color: #fff; border: 1px solid #333; padding: 5px; border-radius: 4px; font-size: 12px; width: 100%; }
-
-        #status-bar { position: fixed; bottom: 0; left: 0; width: 100%; padding: 5px 15px; font-size: 9px; color: #444; letter-spacing: 1px; z-index: 1000; pointer-events: none; }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<canvas id="starCanvas"></canvas>
-<div id="status-bar">V35 // STANDBY</div>
+    <canvas id="starCanvas"></canvas>
+    <div id="status-bar">V35 // STANDBY</div>
 
-<div id="panel" class="closed">
-    <div class="handle" id="toggle-panel">
-        <svg width="10" height="14" viewBox="0 0 10 14"><path d="M8 2 L2 7 L8 12 Z" fill="#666"/></svg>
-    </div>
-    <div class="content">
-        <div class="section">
-            <label>Theming</label>
-            <div class="control-row">Highlight Color <input type="color" id="color-hl" value="#ffd700"></div>
-            <div class="control-row">Transparency <input type="range" id="hl-alpha" min="0" max="1" step="0.1" value="0.6"></div>
+    <div id="panel" class="closed">
+        <div class="handle" id="toggle-panel">
+            <svg width="10" height="14" viewBox="0 0 10 14"><path d="M8 2 L2 7 L8 12 Z" fill="#666"/></svg>
         </div>
-        <div class="section">
-            <label>Data</label>
-            <button id="btn-edit" style="width:100%;">Edit Selection</button>
+        <div class="content">
+            <div class="section">
+                <label>Theming</label>
+                <div class="control-row">Highlight Color <input type="color" id="color-hl" value="#ffd700"></div>
+                <div class="control-row">Transparency <input type="range" id="hl-alpha" min="0" max="1" step="0.1" value="0.6"></div>
+                <div class="control-row">Country Labels <input type="checkbox" id="show-labels" checked></div>
+            </div>
+            <div class="section">
+                <label>Data</label>
+                <button id="btn-edit" style="width:100%;">Edit Selection</button>
+            </div>
+            <div class="section">
+                <label>Selected (<span id="count">0</span>)</label>
+                <div id="selection-list" style="font-size: 11px; color: #777;"></div>
+            </div>
         </div>
-        <div class="section">
-            <label>Selected (<span id="count">0</span>)</label>
-            <div id="selection-list" style="font-size: 11px; color: #777;"></div>
-        </div>
-    </div>
-</div>
-
-<div id="editModal" class="modal">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-        <h3 style="margin:0; font-weight: 300; font-size: 16px;">Edit Selection</h3>
-        <button id="btn-copy" class="icon-btn" title="Copy to Clipboard">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-        </button>
     </div>
 
-    <div style="margin-bottom: 10px;">
-        <label style="font-size: 10px; color: #555; text-transform: uppercase; display: block; margin-bottom: 5px;">Format</label>
-        <select id="ioFormat">
+    <div id="editModal" class="modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <h3 style="margin:0; font-weight: 300; font-size: 16px;">Edit Selection</h3>
+            <button id="btn-copy" class="icon-btn" title="Copy to Clipboard">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+        </div>
+        <select id="ioFormat" style="margin-bottom:10px;">
             <option value="newline">New Line List</option>
             <option value="csv">Comma Separated</option>
             <option value="json">JSON Array</option>
             <option value="md">Numbered Markdown</option>
         </select>
+        <textarea id="modalArea" placeholder="Enter names..."></textarea>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button id="btn-close" style="background:transparent; border:none; color: #888;">Cancel</button>
+            <button id="btn-apply" style="background:var(--accent); color:#000; border:none; padding:10px 20px; font-weight: bold;">Apply</button>
+        </div>
     </div>
 
-    <textarea id="modalArea" placeholder="Enter names..."></textarea>
+    <div id="globeViz"></div>
 
-    <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button id="btn-close" style="background:transparent; border:none; color: #888;">Cancel</button>
-        <button id="btn-apply" style="background:var(--accent); color:#000; border:none; padding:10px 20px; font-weight: bold;">Apply</button>
-    </div>
-</div>
-
-<div id="globeViz"></div>
-
-<script type="module">
-    import Globe from 'globe.gl';
-
-    const state = {
-        selected: new Set(),
-        colors: { hl: '#ffd700', alpha: 0.6 },
-        texture: '//cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
-        resolution: '110m'
-    };
-
-    let world;
-
-    function initStars() {
-        const canvas = document.getElementById('starCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        const stars = Array.from({ length: 400 }, () => ({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 1.2, opacity: Math.random() }));
-        stars.forEach(s => { ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); });
-    }
-
-    async function loadGeo(res) {
-        const url = `https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_${res}_admin_0_countries.geojson`;
-        const resData = await fetch(url);
-        const data = await resData.json();
-        world.polygonsData(data.features.map(f => ({ 
-            ...f, 
-            properties: { ...f.properties, NAME: f.properties.NAME || f.properties.ADMIN } 
-        })));
-        state.resolution = res;
-    }
-
-    function updateGlobeColors() {
-        const rgba = hexToRgba(state.colors.hl, state.colors.alpha);
-        // Explicitly check selected state to prevent default yellow washout
-        world.polygonCapColor(d => state.selected.has(d.properties.NAME) ? rgba : 'rgba(120,120,120,0.12)');
-    }
-
-    function updateUI() {
-        const list = [...state.selected].sort();
-        document.getElementById('count').innerText = list.length;
-        document.getElementById('selection-list').innerHTML = list.map(n => `<div>${n}</div>`).join('');
-    }
-
-    function getFormattedText() {
-        const fmt = document.getElementById('ioFormat').value;
-        const list = [...state.selected].sort();
-        if (fmt === 'json') return JSON.stringify(list, null, 2);
-        if (fmt === 'csv') return list.join(', ');
-        if (fmt === 'newline') return list.join('\n');
-        return list.map((n, i) => `${i + 1}. ${n}`).join('\n');
-    }
-
-    function loadSettings() {
-        const savedPov = localStorage.getItem('gm_v35_pov');
-        world.pointOfView(savedPov ? JSON.parse(savedPov) : { lat: 45, lng: 10, altitude: 1.0 }, 0);
-        if (window.innerWidth > 768) document.getElementById('panel').classList.remove('closed');
-    }
-
-    async function init() {
-        initStars();
-        world = Globe()(document.getElementById('globeViz'))
-            .backgroundColor('rgba(0,0,0,0)')
-            .globeImageUrl(state.texture)
-            .showAtmosphere(false)
-            .polygonAltitude(0.01)
-            .polygonSideColor(() => 'rgba(0,0,0,0.1)')
-            .polygonStrokeColor(() => '#222')
-            .polygonCapColor(() => 'rgba(120,120,120,0.12)') // Fixes initial yellow bug
-            .onPolygonClick(d => {
-                const name = d.properties.NAME;
-                state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
-                updateGlobeColors();
-                updateUI();
-                localStorage.setItem('gm_v35_data', JSON.stringify([...state.selected]));
-            });
-
-        const controls = world.controls();
-        controls.enableDamping = true;
-        controls.zoomSpeed = 15.0;
-        
-        controls.addEventListener('change', () => {
-            const pov = world.pointOfView();
-            document.getElementById('status-bar').innerText = `V35 // LAT: ${pov.lat.toFixed(2)} LNG: ${pov.lng.toFixed(2)} ALT: ${pov.altitude.toFixed(2)}`;
-            if (pov.altitude < 0.2 && state.resolution !== '50m') loadGeo('50m');
-            else if (pov.altitude >= 0.3 && state.resolution !== '110m') loadGeo('110m');
-            localStorage.setItem('gm_v35_pov', JSON.stringify(pov));
-        });
-
-        await loadGeo('110m');
-        loadSettings();
-        const saved = localStorage.getItem('gm_v35_data');
-        if(saved) { state.selected = new Set(JSON.parse(saved)); updateUI(); updateGlobeColors(); }
-    }
-
-    function hexToRgba(hex, a) {
-        const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r},${g},${b},${a})`;
-    }
-
-    // UI Listeners
-    document.getElementById('toggle-panel').onclick = () => document.getElementById('panel').classList.toggle('closed');
-    document.getElementById('color-hl').oninput = (e) => { state.colors.hl = e.target.value; updateGlobeColors(); };
-    document.getElementById('hl-alpha').oninput = (e) => { state.colors.alpha = e.target.value; updateGlobeColors(); };
-    
-    document.getElementById('btn-edit').onclick = () => {
-        document.getElementById('modalArea').value = getFormattedText();
-        document.getElementById('editModal').style.display = 'block';
-    };
-
-    document.getElementById('ioFormat').onchange = () => {
-        document.getElementById('modalArea').value = getFormattedText();
-    };
-    
-    document.getElementById('btn-copy').onclick = function() {
-        navigator.clipboard.writeText(document.getElementById('modalArea').value);
-        const icon = this.querySelector('svg');
-        icon.style.stroke = '#0f0';
-        setTimeout(() => icon.style.stroke = '', 1000);
-    };
-
-    document.getElementById('btn-apply').onclick = () => {
-        const fmt = document.getElementById('ioFormat').value;
-        const val = document.getElementById('modalArea').value.trim();
-        let newSelection = [];
-        
-        try {
-            if(fmt === 'json') newSelection = JSON.parse(val || "[]");
-            else if(fmt === 'csv') newSelection = val.split(',').map(s => s.trim());
-            else if(fmt === 'newline') newSelection = val.split('\n').map(s => s.trim());
-            else newSelection = val.replace(/^\d+\.\s+/gm, '').split('\n').map(s => s.trim());
-            
-            state.selected = new Set(newSelection.filter(s => s));
-            updateGlobeColors(); updateUI();
-            localStorage.setItem('gm_v35_data', JSON.stringify([...state.selected]));
-            document.getElementById('editModal').style.display = 'none';
-        } catch(e) { alert("Invalid Format: " + e.message); }
-    };
-
-    document.getElementById('btn-close').onclick = () => document.getElementById('editModal').style.display = 'none';
-
-    init();
-</script>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
