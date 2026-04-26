@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Globe Highlight V33</title>
+    <title>Globe Highlight</title>
 
     <script type="importmap">
     {
@@ -12,110 +12,86 @@
             "globe.gl": "https://esm.sh/globe.gl@2.30.0",
             "d3": "https://esm.sh/d3@7.9.0",
             "topojson-client": "https://esm.sh/topojson-client@3.1.0",
-            "fuse.js": "https://esm.sh/fuse.js@7.0.0",
             "stats.js": "https://esm.sh/stats.js@0.17.0"
         }
     }
     </script>
 
     <style>
-        :root { --accent: #ffd700; --bg: #05070a; --ui: rgba(15, 22, 30, 0.98); --text: #f0f0f0; }
+        :root { --accent: #ffd700; --bg: #000000; --ui: rgba(10, 12, 18, 0.98); --text: #f0f0f0; }
         body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-
-        /* Search Overlay */
-        #search-box { position: fixed; top: 25px; left: 50%; transform: translateX(-50%); z-index: 400; width: 400px; }
-        #search-input { width: 100%; padding: 14px 24px; border-radius: 30px; border: 1px solid #333; background: var(--ui); color: white; backdrop-filter: blur(12px); outline: none; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 14px; }
-        #search-input:focus { border-color: var(--accent); }
 
         /* Side Panel */
         #panel { position: fixed; left: 0; top: 0; width: 320px; height: 100%; background: var(--ui); border-right: 1px solid #222; z-index: 300; transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
         #panel.closed { transform: translateX(-100%); }
-        
         .handle { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); background: var(--ui); width: 32px; height: 70px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #333; border-left: none; border-radius: 0 12px 12px 0; }
-        .handle svg { fill: #ddd; transition: fill 0.2s; }
-
-        .content { padding: 30px; display: flex; flex-direction: column; gap: 24px; height: 100%; overflow-y: auto; box-sizing: border-box; }
-        .section label { display: block; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #666; margin-bottom: 10px; border-bottom: 1px solid #222; letter-spacing: 1px; }
-        .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; color: #bbb; }
         
+        .content { padding: 30px; display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto; box-sizing: border-box; }
+        .section label { display: block; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #555; margin-bottom: 8px; border-bottom: 1px solid #222; letter-spacing: 1px; }
+        .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #bbb; }
+        
+        input[type="text"] { background: #000; border: 1px solid #333; color: #0f0; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 10px; width: 100%; }
         input[type="color"] { border: 1px solid #444; width: 32px; height: 32px; cursor: pointer; background: none; border-radius: 4px; padding: 0; }
-        button { padding: 12px; background: #1c212e; border: 1px solid #333; color: white; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; transition: 0.2s; border: 1px solid #444; }
-        button:hover { border-color: var(--accent); background: #252b3a; }
+        button { padding: 12px; background: #151921; border: 1px solid #333; color: white; border-radius: 8px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+        button:hover { border-color: var(--accent); }
 
         /* Modal */
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--ui); padding: 30px; border-radius: 20px; border: 1px solid #444; z-index: 1000; width: 500px; box-shadow: 0 30px 70px rgba(0,0,0,0.9); }
         textarea { width: 100%; height: 280px; background: #000; color: #8c8; font-family: 'JetBrains Mono', monospace; padding: 15px; margin: 15px 0; border: 1px solid #333; border-radius: 10px; resize: none; font-size: 12px; box-sizing: border-box; outline: none; }
-        
-        /* Developer Mode Overlay */
-        #dev-overlay { position: fixed; bottom: 20px; right: 20px; padding: 15px; background: rgba(0,0,0,0.85); border: 1px solid #444; font-family: 'JetBrains Mono', monospace; font-size: 11px; display: none; pointer-events: none; border-radius: 8px; color: #0f0; line-height: 1.8; z-index: 1000; min-width: 180px; }
-        #loading { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 2000; letter-spacing: 4px; color: #444; font-size: 10px; }
 
-        .icon-btn { background: none; border: none; padding: 5px; cursor: pointer; display: flex; align-items: center; color: #aaa; }
-        .icon-btn:hover { color: var(--accent); }
+        .globe-label { color: white; font-weight: 500; text-shadow: 0 0 3px black; pointer-events: none; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        
+        #dev-tools { display: none; margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.4); border-radius: 6px; }
+        #status-bar { position: fixed; bottom: 0; left: 0; width: 100%; padding: 5px 15px; font-size: 9px; color: #444; letter-spacing: 1px; z-index: 1000; }
     </style>
 </head>
 <body>
 
-<div id="loading">V39 // KERNEL LOAD</div>
-
-<div id="search-box" style="display: none;">
-    <input type="text" id="search-input" placeholder="Search Country or ISO (VAT, MAC, MCO, NRU, TUV, SMR)...">
-</div>
+<div id="status-bar">V34 // CORE READY</div>
 
 <div id="panel">
     <div class="handle" id="toggle-panel">
-        <svg width="10" height="14" viewBox="0 0 10 14"><path d="M8 2 L2 7 L8 12 Z"/></svg>
+        <svg width="10" height="14" viewBox="0 0 10 14"><path d="M8 2 L2 7 L8 12 Z" fill="#666"/></svg>
     </div>
     <div class="content">
         <div class="section">
             <label>Theming</label>
-            <div class="control-row">Ocean <input type="color" id="color-ocean" value="#2a4b6b"></div>
-            <div class="control-row">Land <input type="color" id="color-land" value="#8ca68c"></div>
-            <div class="control-row">Selection <input type="color" id="color-hl" value="#ffd700"></div>
+            <div class="control-row">Highlight Color <input type="color" id="color-hl" value="#ffd700"></div>
+            <div class="control-row">Transparency <input type="range" id="hl-alpha" min="0" max="1" step="0.1" value="0.6"></div>
             <div class="control-row">Country Labels <input type="checkbox" id="show-labels" checked></div>
-            <div class="control-row">Developer Mode <input type="checkbox" id="dev-mode"></div>
-        </div>
-
-        <div class="section">
-            <label>Data Management</label>
-            <select id="ioFormat" style="width:100%; padding:10px; margin-bottom:12px; background:#000; color:#fff; border:1px solid #333; border-radius:6px;">
-                <option value="newline" selected>New Line List</option>
-                <option value="csv">Comma Separated Values</option>
-                <option value="json">JSON Array</option>
-                <option value="md">Numbered Markdown</option>
-            </select>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <button id="btn-edit">Edit</button>
-                <button id="reset-btn" style="color:#ff6666; display:none; border-color: #522;">Factory Reset</button>
+            <div class="control-row">Dev Mode <input type="checkbox" id="dev-mode"></div>
+            
+            <div id="dev-tools">
+                <div class="control-row" style="font-size: 10px;">Texture URL</div>
+                <input type="text" id="texture-url" value="//cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg">
+                <button id="reset-btn" style="color:#ff6666; width:100%; margin-top:10px;">Clear Storage</button>
             </div>
         </div>
 
         <div class="section">
-            <label>Current Selection (<span id="count">0</span>)</label>
-            <div id="selection-list" style="font-size: 11px; color: #666; column-count: 2; line-height: 1.8;"></div>
+            <label>Data</label>
+            <button id="btn-edit" style="width:100%;">Edit Selection</button>
+        </div>
+
+        <div class="section">
+            <label>Selected (<span id="count">0</span>)</label>
+            <div id="selection-list" style="font-size: 11px; color: #777; line-height: 1.8;"></div>
         </div>
     </div>
 </div>
 
 <div id="editModal" class="modal">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="margin:0; font-weight: 300;">Data Sync</h3>
+        <h3 style="margin:0; font-weight: 300;">Edit Selection List</h3>
         <button id="btn-copy" class="icon-btn" title="Copy to Clipboard">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
         </button>
     </div>
-    <textarea id="modalArea"></textarea>
+    <textarea id="modalArea" placeholder="Enter country names (one per line)..."></textarea>
     <div style="display:flex; gap:12px; justify-content:flex-end;">
         <button id="btn-close" style="background: transparent; border: none;">Cancel</button>
-        <button id="btn-apply" style="background: var(--accent); color: #000; border: none; padding: 10px 25px;">Apply</button>
+        <button id="btn-apply" style="background: var(--accent); color: #000; border: none; padding: 10px 25px;">Apply Changes</button>
     </div>
-</div>
-
-<div id="dev-overlay">
-    COORD: <span id="dev-coords">0.00, 0.00</span><br>
-    ALT: <span id="dev-zoom">1.00</span><br>
-    INERTIA: <span id="dev-inertia">0.05</span><br>
-    FPS: <span id="dev-fps">60</span>
 </div>
 
 <div id="globeViz"></div>
@@ -123,144 +99,155 @@
 <script type="module">
     import * as THREE from 'three';
     import Globe from 'globe.gl';
-    import * as d3 from 'd3';
-    import * as topojson from 'topojson-client';
-    import Fuse from 'fuse.js';
     import Stats from 'stats.js';
 
-    const ISO_MAP = { "USA": "United States of America", "FRA": "France", "CHN": "China", "RUS": "Russia", "GBR": "United Kingdom", "DEU": "Germany", "JPN": "Japan", "CAN": "Canada", "ITA": "Italy", "BRA": "Brazil", "AUS": "Australia", "IND": "India", "MAC": "Macao", "VAT": "Holy See" };
-    
     const state = {
         selected: new Set(),
-        colors: { ocean: '#2a4b6b', land: '#8ca68c', hl: '#ffd700' },
+        colors: { hl: '#ffd700', alpha: 0.6 },
+        texture: '//cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
+        resolution: '110m',
         showLabels: true,
         devMode: false,
-        geoData: null,
-        fuse: null
+        geoData: [],
+        metadata: {}
     };
 
-    let world, stats, magnifyTimeout;
+    let world, stats;
+
+    async function loadMetadata() {
+        const url = "https://gist.githubusercontent.com/danzuep/e4925b7862d67453723890c3fbf63d1c/raw/fc7f2383bf0a33592be91596babbe2b1b25865d2/countries.js";
+        try {
+            const response = await fetch(url);
+            state.metadata = await response.json();
+        } catch (e) { console.error("Metadata load failed"); }
+    }
+
+    async function loadGeo(res) {
+        document.getElementById('status-bar').innerText = `SYNCING MESH (${res})...`;
+        const url = `https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_${res}_admin_0_countries.geojson`;
+        
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            state.geoData = data.features.map(f => {
+                // Ensure NAME property exists for the user's logic
+                f.properties.NAME = f.properties.NAME || f.properties.ADMIN;
+                f.properties.iso = f.properties.ISO_A3 || f.properties.ADM0_A3 || f.properties.GU_A3;
+                return f;
+            });
+            
+            state.resolution = res;
+            if (world) world.polygonsData(state.geoData);
+            document.getElementById('status-bar').innerText = `READY // ${res}`;
+        } catch (e) { document.getElementById('status-bar').innerText = "GEO-DATA ERROR"; }
+    }
+
+    // --- REQUESTED FUNCTIONS ---
+    function toggleSelection(name) {
+        if(!name) return;
+        state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
+        world.polygonCapColor(d => state.selected.has(d.properties.NAME) ? hexToRgba(state.colors.hl, state.colors.alpha) : 'rgba(120,120,120,0.12)');
+        updateUI();
+        saveState();
+    }
+
+    function updateUI() {
+        const list = [...state.selected].sort().map(name => name);
+        document.getElementById('count').innerText = list.length;
+        document.getElementById('selection-list').innerHTML = list.map(name => `<div>${name}</div>`).join('');
+    }
 
     async function init() {
-        stats = new Stats();
-        document.body.appendChild(stats.dom);
-        stats.dom.style.display = 'none';
-
-        const res = await fetch('https://unpkg.com/world-atlas@2.0.2/countries-50m.json');
-        const rawData = await res.json();
-        state.geoData = topojson.feature(rawData, rawData.objects.countries).features;
-        state.fuse = new Fuse(state.geoData, { keys: ['properties.name'], threshold: 0.3 });
-
-        // --- SEARCH LOGIC ---
-        document.getElementById('search-input').addEventListener('input', (e) => {
-            const val = e.target.value.trim().toUpperCase();
-            if(val.length < 2) return;
-
-            let match = state.geoData.find(f => f.properties.name === ISO_MAP[val]);
-            if(!match) {
-                const results = state.fuse.search(val);
-                if(results.length > 0) match = results[0].item;  // Take the best match
-            }
-
-            if(match) {
-                const bbox = d3.geoBounds(match);
-                world.pointOfView({
-                    lat: (bbox[0][1]+bbox[1][1])/2,
-                    lng: (bbox[0][0]+bbox[1][0])/2,
-                    altitude: 0.6
-                }, 1200);
-            }
-        });
-
         world = Globe()(document.getElementById('globeViz'))
-            .backgroundColor('#05070a')
-            .showAtmosphere(true)
-            .atmosphereColor(state.colors.ocean)
-            .atmosphereAltitude(0.15)
-            .polygonsData(state.geoData)
+            .backgroundColor('#000000')
+            .showAtmosphere(false)
             .polygonAltitude(0.01)
-            .polygonCapColor(d => state.selected.has(d.properties.name) ? state.colors.hl : state.colors.land)
-            .polygonSideColor(() => 'rgba(0,0,0,0.3)')
-            .polygonStrokeColor(() => '#1a1c1e')
-            .polygonLabel(d => state.showLabels ? d.properties.name : null)
-            .onPolygonClick(d => toggleSelection(d.properties.name))
-            .onPolygonHover(d => {
-                if (state.showLabels) document.body.style.cursor = d ? 'pointer' : 'default';
-            });
+            .polygonCapColor(d => state.selected.has(d.properties.NAME) ? hexToRgba(state.colors.hl, state.colors.alpha) : 'rgba(120,120,120,0.12)')
+            .polygonSideColor(() => 'rgba(0,0,0,0.2)')
+            .polygonStrokeColor(() => '#222')
+            .polygonLabel(d => {
+                if(!state.showLabels) return null;
+                const name = d.properties.NAME;
+                const iso3 = d.properties.iso;
+                const meta = Object.values(state.metadata).find(c => c["Alpha-3 code"] === iso3);
+                const displayName = iso3 === 'USA' ? 'USA' : (meta ? meta.Country : name);
+                const flag = meta ? meta.emoji_flag : '';
+                return `<div class="globe-label"><span>${flag}</span> ${displayName}</div>`;
+            })
+            .onPolygonClick(d => toggleSelection(d.properties.NAME))
+            .onPolygonHover(d => document.body.style.cursor = d ? 'pointer' : 'default');
 
-        // Background Stars
+        // Setup Scene
         const starGeo = new THREE.BufferGeometry();
         const starPos = [];
         for(let i=0; i<3000; i++) {
-            const r = 800 + Math.random() * 200;
+            const r = 900 + Math.random() * 200;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(2 * Math.random() - 1);
             starPos.push(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
         }
         starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xFFFFFF, size: 0.8, transparent: true, opacity: 0.5 }));
-        world.scene().add(stars);
+        world.scene().add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xFFFFFF, size: 0.7, transparent: true, opacity: 0.5 })));
 
-        // Control Configuration
         const controls = world.controls();
         controls.enableDamping = true;
-        controls.dampingFactor = 0.1;
-        controls.zoomSpeed = 500;
-        controls.minDistance = 0.02;
-        controls.maxDistance = 400;
-        
-        world.pointOfView({ lat: 45, lng: 10, altitude: 1.0 }, 0);
-        updateOceanTexture();
-        loadFromStorage();
+        controls.zoomSpeed = 15.0; 
 
-        document.getElementById('loading').style.display = 'none';
-        
+        await loadMetadata();
+        await loadGeo('110m');
+        world.globeImageUrl(state.texture);
+
+        // Load Persistence
+        const savedPov = localStorage.getItem('gm_v34_pov');
+        world.pointOfView(savedPov ? JSON.parse(savedPov) : { lat: 45, lng: 10, altitude: 1.0 }, 0);
+        loadState();
+        updateUI();
+
+        stats = new Stats();
+        document.body.appendChild(stats.dom);
+        stats.dom.style.display = 'none';
+
         (function animate() {
             stats.update();
-            if(state.devMode) {
-                const pov = world.pointOfView();
-                document.getElementById('dev-coords').innerText = `${pov.lat.toFixed(2)}, ${pov.lng.toFixed(2)}`;
-                document.getElementById('dev-zoom').innerText = pov.altitude.toFixed(2);
-                document.getElementById('dev-inertia').innerText = controls.dampingFactor.toFixed(3);
-            }
+            const pov = world.pointOfView();
+            if (pov.altitude < 0.2 && state.resolution !== '50m') loadGeo('50m');
+            else if (pov.altitude >= 0.2 && state.resolution === '50m') loadGeo('110m');
             requestAnimationFrame(animate);
         })();
+
+        controls.addEventListener('change', debounce(() => {
+            localStorage.setItem('gm_v34_pov', JSON.stringify(world.pointOfView()));
+        }, 1000));
     }
 
-    function toggleSelection(name) {
-        state.selected.has(name) ? state.selected.delete(name) : state.selected.add(name);
-        world.polygonCapColor(d => state.selected.has(d.properties.name) ? state.colors.hl : state.colors.land);
-        updateUI();
-        saveToStorage();
+    // --- HELPERS ---
+    function hexToRgba(hex, a) {
+        const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r},${g},${b},${a})`;
+    }
+    function debounce(func, wait) {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => func.apply(this, args), wait); };
+    }
+    function saveState() { localStorage.setItem('gm_v34_data', JSON.stringify({ sel: [...state.selected] })); }
+    function loadState() {
+        const data = localStorage.getItem('gm_v34_data');
+        if (data) state.selected = new Set(JSON.parse(data).sel);
     }
 
-    function updateUI() {
-        const list = [...state.selected].sort();
-        document.getElementById('count').innerText = list.length;
-        document.getElementById('selection-list').innerHTML = list.map(n => `<div>${n}</div>`).join('');
-    }
-
-    function updateOceanTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 2; canvas.height = 2;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = state.colors.ocean;
-        ctx.fillRect(0,0,2,2);
-        world.globeImageUrl(canvas.toDataURL());
-    }
-
-    // --- EDITOR ---
+    // --- UI BINDINGS ---
     document.getElementById('btn-edit').onclick = () => {
-        const fmt = document.getElementById('ioFormat').value;
-        const list = [...state.selected].sort();
-        let out = "";
-        if(fmt === 'json') out = JSON.stringify(list, null, 2);
-        else if(fmt === 'csv') out = list.join(', ');
-        else if(fmt === 'newline') out = list.join('\n');
-        else out = `## Selection\n` + list.map((n, i) => `${i+1}. ${n}`).join('\n');
-        
-        document.getElementById('modalArea').value = out;
+        document.getElementById('modalArea').value = [...state.selected].sort().join('\n');
         document.getElementById('editModal').style.display = 'block';
+    };
+    document.getElementById('btn-close').onclick = () => document.getElementById('editModal').style.display = 'none';
+    document.getElementById('btn-apply').onclick = () => {
+        const raw = document.getElementById('modalArea').value;
+        state.selected = new Set(raw.split('\n').map(s => s.trim()).filter(s => s.length > 0));
+        world.polygonCapColor(world.polygonCapColor());
+        updateUI();
+        saveState();
+        document.getElementById('editModal').style.display = 'none';
     };
 
     document.getElementById('btn-copy').onclick = () => {
@@ -269,60 +256,21 @@
         setTimeout(() => document.getElementById('btn-copy').style.color = '', 1000);
     };
 
-    document.getElementById('btn-apply').onclick = () => {
-        const txt = document.getElementById('modalArea').value;
-        state.selected.clear();
-        txt.split(/\n|,/).forEach(l => {
-            const clean = l.replace(/^\d+\.\s+/, '').replace('## Selection', '').trim();
-            if(clean && isNaN(clean)) state.selected.add(clean);
-        });
-        world.polygonCapColor(d => state.selected.has(d.properties.name) ? state.colors.hl : state.colors.land);
-        updateUI();
-        document.getElementById('editModal').style.display = 'none';
+    document.getElementById('reset-btn').onclick = () => {
+        localStorage.clear();
+        location.reload();
     };
 
-    // --- DOM BINDINGS ---
     document.getElementById('dev-mode').onchange = (e) => {
         state.devMode = e.target.checked;
-        document.getElementById('dev-overlay').style.display = e.target.checked ? 'block' : 'none';
-        document.getElementById('search-box').style.display = e.target.checked ? 'block' : 'none';
-        document.getElementById('reset-btn').style.display = e.target.checked ? 'block' : 'none';
+        document.getElementById('dev-tools').style.display = e.target.checked ? 'block' : 'none';
         stats.dom.style.display = e.target.checked ? 'block' : 'none';
     };
 
-    document.getElementById('show-labels').onchange = (e) => state.showLabels = e.target.checked;
-
-    document.getElementById('color-ocean').oninput = (e) => {
-        state.colors.ocean = e.target.value;
-        world.atmosphereColor(state.colors.ocean);
-    };
-
-    document.getElementById('color-land').oninput = (e) => {
-        state.colors.land = e.target.value;
-        world.polygonCapColor(d => state.selected.has(d.properties.name) ? state.colors.hl : state.colors.land);
-    };
-
-    document.getElementById('color-hl').oninput = (e) => {
-        state.colors.hl = e.target.value;
-        world.polygonCapColor(d => state.selected.has(d.properties.name) ? state.colors.hl : state.colors.land);
-    };
-
+    document.getElementById('color-hl').oninput = (e) => { state.colors.hl = e.target.value; world.polygonCapColor(world.polygonCapColor()); };
+    document.getElementById('hl-alpha').oninput = (e) => { state.colors.alpha = e.target.value; world.polygonCapColor(world.polygonCapColor()); };
+    document.getElementById('texture-url').onchange = (e) => world.globeImageUrl(e.target.value);
     document.getElementById('toggle-panel').onclick = () => document.getElementById('panel').classList.toggle('closed');
-    document.getElementById('btn-close').onclick = () => document.getElementById('editModal').style.display = 'none';
-
-    // --- PERSISTENCE ---
-    function saveToStorage() {
-        localStorage.setItem('gm_v39', JSON.stringify({ selected: [...state.selected], colors: state.colors }));
-    }
-
-    function loadFromStorage() {
-        const saved = localStorage.getItem('gm_v39');
-        if (saved) {
-            const d = JSON.parse(saved);
-            state.selected = new Set(d.selected);
-            state.colors = d.colors;
-        }
-    }
 
     init();
 </script>
