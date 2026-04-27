@@ -4,18 +4,13 @@ import { store, hexToRgba } from './state.js';
 import { loadGeoData } from './api.js';
 import * as ui from './ui.js';
 
-const version = 'V36';
+const version = 'V37';
 
 let world;
 
 async function init() {
     ui.initStars();
     
-    // Start with panel expanded on wide screens, collapsed on mobile
-    if (window.innerWidth >= 769) {
-        document.getElementById('panel').classList.remove('closed');
-    }
-
     world = Globe()(document.getElementById('globeViz'))
         .backgroundColor('rgba(0,0,0,0)')
         .globeImageUrl('./assets/earth-blue-marble.jpg')

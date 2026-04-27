@@ -19,8 +19,8 @@ body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(-
     #panel { bottom: 0; left: 0; width: 100%; height: 50%; border-right: none; border-left: none; }
     #panel.closed { transform: translateY(100%); }
     .handle { bottom: 100%; left: 50%; transform: translateX(-50%); width: 70px; height: 32px; border-radius: 12px 12px 0 0; border-bottom: none; }
-    .handle svg { transform: rotate(90deg); }
-    #panel.closed .handle svg { transform: rotate(-90deg); }
+    .handle svg { transform: rotate(-90deg); }
+    #panel.closed .handle svg { transform: rotate(90deg); }
 }
 
 .content { padding: 25px; display: flex; flex-direction: column; gap: 15px; height: 100%; overflow-y: auto; }

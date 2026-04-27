@@ -4,7 +4,8 @@ import { store } from './state.js';
 export function initStars() {
     const canvas = document.getElementById('starCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
     const stars = Array.from({ length: 400 }, () => ({ 
         x: Math.random() * canvas.width, 
         y: Math.random() * canvas.height, 
@@ -15,6 +16,12 @@ export function initStars() {
         ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`; 
         ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill(); 
     });
+
+    // Start with settings panel expanded on wide screens, collapsed on mobile
+    const narrowScreenThreshold = 769;
+    if (window.innerWidth >= narrowScreenThreshold) {
+        document.getElementById('panel').classList.remove('closed');
+    }
 }
 
 export function setupEventListeners() {
@@ -24,10 +31,6 @@ export function setupEventListeners() {
         }
         if (e.detail.prop === 'selected') {
             updateSelectionUI();
-        }
-        if (e.detail.prop === 'showLabels') {
-            document.getElementById('show-labels').checked = e.detail.value;
-            if (window.world) window.world.polygonCapColor(window.world.polygonCapColor());
         }
     });
 
@@ -54,8 +57,12 @@ export function setupEventListeners() {
         document.getElementById('modalArea').value = getFormattedText();
         document.getElementById('editModal').style.display = 'block';
     };
-    
-    document.getElementById('btn-close').onclick = () => 
+
+    document.getElementById('ioFormat').onchange = () => {
+        document.getElementById('modalArea').value = getFormattedText();
+    };
+
+    document.getElementById('btn-close').onclick = () =>
         document.getElementById('editModal').style.display = 'none';
 
     document.getElementById('btn-copy').onclick = () => {
