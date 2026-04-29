@@ -1,4 +1,4 @@
-:root { --accent: #ffd700; --bg: #000; --ui: rgba(10, 12, 18, 0.98); --text: #f0f0f0; }
+:root { --accent: #ffd700; --bg: #151921; --ui: rgba(10, 12, 18, 0.98); --text: whitesmoke; }
 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
 
@@ -24,7 +24,7 @@ body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(-
 }
 
 .content { padding: 25px; display: flex; flex-direction: column; gap: 15px; height: 100%; overflow-y: auto; }
-.section label { display: block; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #555; margin-bottom: 8px; border-bottom: 1px solid #222; letter-spacing: 1px; }
+.section label { display: block; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #888; margin-bottom: 8px; border-bottom: 1px solid #222; letter-spacing: 1px; }
 .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #bbb; }
 
 /* Remove box from color input */
@@ -35,11 +35,87 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
 button { padding: 10px; background: #151921; border: 1px solid #333; color: white; border-radius: 8px; cursor: pointer; font-size: 12px; }
 
 .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--ui); padding: 20px; border-radius: 15px; border: 1px solid #444; z-index: 1000; width: 90%; max-width: 350px; box-shadow: 0 30px 70px rgba(0,0,0,0.9); }
-textarea { width: 100%; height: 200px; background: #000; color: #8c8; font-family: monospace; padding: 10px; margin: 10px 0; border: 1px solid #333; border-radius: 8px; resize: none; font-size: 11px; }
+textarea { width: 100%; height: 200px; background: #151921; color: #8c8; font-family: monospace; padding: 10px; margin: 10px 0; border: 1px solid #333; border-radius: 8px; resize: none; font-size: 11px; }
 
-.icon-btn { background: transparent; border: none; color: #666; padding: 5px; cursor: pointer; display: flex; align-items: center; }
+.icon-btn { background: transparent; border: none; color: silver; padding: 5px; cursor: pointer; display: flex; align-items: center; }
 .icon-btn:hover { color: var(--accent); }
 
-select { background: #000; color: #fff; border: 1px solid #333; padding: 5px; border-radius: 4px; font-size: 12px; width: 100%; }
+select { background: #151921; color: white; border: 1px solid #333; padding: 5px; border-radius: 4px; font-size: 12px; width: 100%; }
 
-#status-bar { position: fixed; bottom: 0; left: 0; width: 100%; padding: 5px 15px; font-size: 9px; color: #444; letter-spacing: 1px; z-index: 1000; pointer-events: none; }
+#status-bar { position: fixed; bottom: 0; left: 0; width: 100%; padding: 5px 15px; font-size: 9px; color: gray; letter-spacing: 1px; z-index: 1000; pointer-events: none; }
+
+/* Inline styles moved from index.html */
+#btn-edit {
+    width: 100%;
+}
+#ioFormat {
+    margin-bottom: 10px;
+}
+#btn-close {
+    color: silver;
+    background: transparent;
+    border: none;
+}
+#btn-apply {
+    background: var(--accent);
+    color: #151921;
+    border: none;
+    padding: 10px 20px;
+    font-weight: bold;
+}
+#selection-list {
+    font-size: 11px;
+    color: silver;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.modal-header h3 {
+    margin: 0;
+    font-weight: 300;
+    font-size: 16px;
+}
+#toggle-panel svg path {
+    fill: silver;
+}
+.button-group {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+#ioFormat {
+    margin-bottom: 10px;
+}
+#btn-close {
+    color: silver;
+    background: transparent;
+    border: none;
+}
+#btn-apply {
+    background: var(--accent);
+    color: #151921;
+    border: none;
+    padding: 10px 20px;
+    font-weight: bold;
+}
+#selection-list {
+    font-size: 11px;
+    color: silver;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.modal-header h3 {
+    margin: 0;
+    font-weight: 300;
+    font-size: 16px;
+}
+#toggle-panel svg path {
+    fill: silver;
+}

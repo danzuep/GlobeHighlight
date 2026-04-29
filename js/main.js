@@ -4,12 +4,13 @@ import { store, hexToRgba } from './state.js';
 import { loadGeoData } from './api.js';
 import * as ui from './ui.js';
 
-const version = 'V37';
+const version = 'V38';
 
 let world;
 
 async function init() {
     ui.initStars();
+    document.getElementById('status-bar').innerText = `${version} // Loading...`;
     
     world = Globe()(document.getElementById('globeViz'))
         .backgroundColor('rgba(0,0,0,0)')

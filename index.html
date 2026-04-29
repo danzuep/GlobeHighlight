@@ -18,12 +18,12 @@
 <body>
 
     <canvas id="starCanvas"></canvas>
-    <div id="status-bar">V35 // STANDBY</div>
+    <div id="status-bar"></div>
 
     <div id="panel" class="closed">
-        <div class="handle" id="toggle-panel">
-            <svg width="10" height="14" viewBox="0 0 10 14"><path d="M8 2 L2 7 L8 12 Z" fill="#666"/></svg>
-        </div>
+             <div class="handle" id="toggle-panel">
+                 <svg width="10" height="14" viewBox="0 0 10 14"><path d="M8 2 L2 7 L8 12 Z"/></svg>
+             </div>
         <div class="content">
             <div class="section">
                 <label>Theming</label>
@@ -32,33 +32,33 @@
                 <div class="control-row">Country Labels <input type="checkbox" id="show-labels" checked></div>
             </div>
             <div class="section">
-                <label>Data</label>
-                <button id="btn-edit" style="width:100%;">Edit Selection</button>
+                 <label>Data</label>
+                 <button id="btn-edit">Edit Selection</button>
             </div>
             <div class="section">
-                <label>Selected (<span id="count">0</span>)</label>
-                <div id="selection-list" style="font-size: 11px; color: #777;"></div>
+                 <label>Selected (<span id="count">0</span>)</label>
+                 <div id="selection-list"></div>
             </div>
         </div>
     </div>
 
-    <div id="editModal" class="modal">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-            <h3 style="margin:0; font-weight: 300; font-size: 16px;">Edit Selection</h3>
-            <button id="btn-copy" class="icon-btn" title="Copy to Clipboard">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            </button>
-        </div>
-        <select id="ioFormat" style="margin-bottom:10px;">
+        <div id="editModal" class="modal">
+            <div class="modal-header">
+                <h3>Edit Selection</h3>
+                <button id="btn-copy" class="icon-btn" title="Copy to Clipboard">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+            </div>
+        <select id="ioFormat">
             <option value="newline">New Line List</option>
             <option value="csv">Comma Separated</option>
             <option value="json">JSON Array</option>
             <option value="md">Numbered Markdown</option>
         </select>
         <textarea id="modalArea" placeholder="Enter names..."></textarea>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-            <button id="btn-close" style="background:transparent; border:none; color: #888;">Cancel</button>
-            <button id="btn-apply" style="background:var(--accent); color:#000; border:none; padding:10px 20px; font-weight: bold;">Apply</button>
+        <div class="button-group">
+            <button id="btn-close">Cancel</button>
+            <button id="btn-apply">Apply</button>
         </div>
     </div>
 
